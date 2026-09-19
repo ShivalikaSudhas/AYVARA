@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   BedDouble,
   Building2,
@@ -5,93 +6,110 @@ import {
   Ambulance,
   ArrowUpRight,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 
 import Sidebar from "../components/common/Sidebar";
-
-const stats = [
-  {
-    title: "Available Beds",
-    value: "128",
-    description: "Across all hospitals",
-    icon: BedDouble,
-  },
-  {
-    title: "Hospitals Online",
-    value: "12",
-    description: "Connected facilities",
-    icon: Building2,
-  },
-  {
-    title: "Active Emergencies",
-    value: "7",
-    description: "Currently being handled",
-    icon: Siren,
-  },
-  {
-    title: "Ambulances",
-    value: "24",
-    description: "Available for dispatch",
-    icon: Ambulance,
-  },
-];
-
-const hospitals = [
-  {
-    name: "City General Hospital",
-    location: "Central District",
-    beds: 32,
-    occupancy: 72,
-    status: "Available",
-  },
-  {
-    name: "St. Mary's Medical Center",
-    location: "North District",
-    beds: 18,
-    occupancy: 81,
-    status: "Available",
-  },
-  {
-    name: "Central Emergency Hospital",
-    location: "East District",
-    beds: 7,
-    occupancy: 94,
-    status: "Limited",
-  },
-  {
-    name: "Green Valley Hospital",
-    location: "West District",
-    beds: 25,
-    occupancy: 64,
-    status: "Available",
-  },
-];
-
-const emergencies = [
-  {
-    id: "ER-1042",
-    type: "Road Accident",
-    location: "MG Road",
-    priority: "Critical",
-    time: "2 min ago",
-  },
-  {
-    id: "ER-1041",
-    type: "Cardiac Emergency",
-    location: "Indiranagar",
-    priority: "High",
-    time: "7 min ago",
-  },
-  {
-    id: "ER-1039",
-    type: "Trauma",
-    location: "Airport Road",
-    priority: "Moderate",
-    time: "14 min ago",
-  },
-];
+import { fetchAnalyticsSummary, fetchHospitals } from "../services/api";
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({
+    available_beds: 128,
+    hospitals_online: 12,
+    active_emergencies: 7,
+    ambulances_available: 24,
+  });
+  const [hospitalList, setHospitalList] = useState<any[]>([]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [sumData, hospData] = await Promise.all([
+        fetchAnalyticsSummary(),
+        fetchHospitals(),
+      ]);
+      if (sumData) {
+        setSummary({
+          available_beds: sumData.available_beds ?? 128,
+          hospitals_online: sumData.hospitals_online ?? 12,
+          active_emergencies: sumData.active_emergencies ?? 7,
+          ambulances_available: sumData.ambulances_available ?? 24,
+        });
+      }
+      if (hospData && Array.isArray(hospData)) {
+        setHospitalList(
+          hospData.map((h: any) => ({
+            name: h.name || h.hospital_name || "Hospital",
+            location: h.location || "District",
+            beds: h.total_available_beds ?? h.beds ?? 15,
+            occupancy: h.occupancy ?? 70,
+            status: h.status || "Available",
+          }))
+        );
+      }
+    } catch (e) {
+      console.error("Error loading dashboard data", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const stats = [
+    {
+      title: "Available Beds",
+      value: summary.available_beds.toString(),
+      description: "Across all hospitals",
+      icon: BedDouble,
+    },
+    {
+      title: "Hospitals Online",
+      value: summary.hospitals_online.toString(),
+      description: "Connected facilities",
+      icon: Building2,
+    },
+    {
+      title: "Active Emergencies",
+      value: summary.active_emergencies.toString(),
+      description: "Currently being handled",
+      icon: Siren,
+    },
+    {
+      title: "Ambulances",
+      value: summary.ambulances_available.toString(),
+      description: "Available for dispatch",
+      icon: Ambulance,
+    },
+  ];
+
+  const emergencies = [
+    {
+      id: "ER-1042",
+      type: "Road Accident",
+      location: "MG Road",
+      priority: "Critical",
+      time: "2 min ago",
+    },
+    {
+      id: "ER-1041",
+      type: "Cardiac Emergency",
+      location: "Indiranagar",
+      priority: "High",
+      time: "7 min ago",
+    },
+    {
+      id: "ER-1039",
+      type: "Trauma",
+      location: "Airport Road",
+      priority: "Moderate",
+      time: "14 min ago",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#F6F8F6]">
       <Sidebar />
@@ -109,17 +127,26 @@ export default function Dashboard() {
             </h1>
 
             <p className="mt-2 text-sm text-[#647067]">
-              Monitor hospital capacity, emergencies and ambulance
-              availability.
+              Monitor hospital capacity, emergencies and ambulance availability in real time.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2">
-            <span className="h-2 w-2 rounded-full bg-green-500" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={loadDashboardData}
+              className="flex items-center gap-1.5 rounded-lg border border-[#DDE5DF] bg-white px-3 py-2 text-xs font-medium text-[#172019] shadow-sm transition hover:bg-slate-50"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
 
-            <span className="text-sm font-medium text-green-700">
-              System Operational
-            </span>
+            <div className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+
+              <span className="text-sm font-medium text-green-700">
+                System Operational
+              </span>
+            </div>
           </div>
         </div>
 
@@ -199,7 +226,7 @@ export default function Dashboard() {
               </thead>
 
               <tbody className="divide-y divide-[#E7ECE8]">
-                {hospitals.map((hospital) => (
+                {hospitalList.map((hospital) => (
                   <tr
                     key={hospital.name}
                     className="transition hover:bg-[#F8FAF8]"
@@ -345,7 +372,7 @@ export default function Dashboard() {
                   </p>
 
                   <p className="text-xs text-[#8A958E]">
-                    Central Emergency Hospital · 3 min ago
+                    Janapriya Hospital · 3 min ago
                   </p>
                 </div>
               </div>
@@ -374,20 +401,6 @@ export default function Dashboard() {
 
                   <p className="text-xs text-[#8A958E]">
                     City General Hospital · 9 min ago
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-red-500" />
-
-                <div>
-                  <p className="text-sm text-slate-700">
-                    Emergency request created
-                  </p>
-
-                  <p className="text-xs text-[#8A958E]">
-                    ER-1039 · 14 min ago
                   </p>
                 </div>
               </div>

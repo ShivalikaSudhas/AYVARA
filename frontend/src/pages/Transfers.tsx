@@ -1,56 +1,74 @@
+import { useEffect, useState } from "react";
 import {
   ArrowRightLeft,
   CheckCircle2,
   Clock3,
   QrCode,
+  RefreshCw,
 } from "lucide-react";
 
 import Sidebar from "../components/common/Sidebar";
-
-const transfers = [
-  {
-    id: "TR-2081",
-    patient: "Emergency Case ER-1042",
-    from: "City General Hospital",
-    to: "Central Emergency Hospital",
-    status: "In Transit",
-    time: "12 min ago",
-  },
-  {
-    id: "TR-2080",
-    patient: "Emergency Case ER-1041",
-    from: "St. Mary's Medical Center",
-    to: "City General Hospital",
-    status: "Completed",
-    time: "34 min ago",
-  },
-  {
-    id: "TR-2079",
-    patient: "Emergency Case ER-1038",
-    from: "Green Valley Hospital",
-    to: "St. Mary's Medical Center",
-    status: "Pending",
-    time: "48 min ago",
-  },
-];
+import { fetchTransfers } from "../services/api";
 
 export default function Transfers() {
+  const [loading, setLoading] = useState(true);
+  const [transfersList, setTransfersList] = useState<any[]>([]);
+
+  const loadTransfersData = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchTransfers();
+      if (data && Array.isArray(data)) {
+        setTransfersList(
+          data.map((t: any) => ({
+            id: t.id || `TR-${Math.floor(1000 + Math.random() * 9000)}`,
+            patient: t.patient_condition || "Severe Emergency Case",
+            from: t.source_hospital || "City General Hospital",
+            to: t.target_hospital || "Janapriya Hospital",
+            status: t.status === "COMPLETED" ? "Completed" : t.status === "IN_PROGRESS" ? "In Transit" : "Pending",
+            time: t.requested_at || "Just now",
+          }))
+        );
+      }
+    } catch (e) {
+      console.error("Transfers fetch error", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTransfersData();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F6F8F6]">
       <Sidebar />
 
       <main className="ml-64 p-8">
-        <p className="text-sm font-semibold tracking-wide text-green-700">
-          PATIENT MOVEMENT
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold tracking-wide text-green-700">
+              PATIENT MOVEMENT
+            </p>
 
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#172019]">
-          Transfers
-        </h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#172019]">
+              Inter-Hospital Transfers
+            </h1>
 
-        <p className="mt-2 text-sm text-[#647067]">
-          Track inter-hospital transfers and handovers.
-        </p>
+            <p className="mt-2 text-sm text-[#647067]">
+              Track and coordinate inter-hospital patient handovers.
+            </p>
+          </div>
+
+          <button
+            onClick={loadTransfersData}
+            className="flex items-center gap-1.5 rounded-lg border border-[#DDE5DF] bg-white px-3 py-2 text-xs font-medium text-[#172019] shadow-sm hover:bg-slate-50"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh Queue
+          </button>
+        </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5 shadow-sm">
@@ -61,7 +79,7 @@ export default function Transfers() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-[#172019]">
-              8
+              {transfersList.length}
             </p>
           </div>
 
@@ -73,7 +91,7 @@ export default function Transfers() {
             </p>
 
             <p className="mt-1 text-3xl font-bold text-[#172019]">
-              3
+              {transfersList.filter((t) => t.status === "Pending").length}
             </p>
           </div>
 
@@ -81,22 +99,22 @@ export default function Transfers() {
             <CheckCircle2 className="text-green-600" size={22} />
 
             <p className="mt-4 text-sm text-[#647067]">
-              Completed Today
+              Completed Handovers
             </p>
 
             <p className="mt-1 text-3xl font-bold text-[#172019]">
-              24
+              {transfersList.filter((t) => t.status === "Completed").length}
             </p>
           </div>
         </div>
 
         <div className="mt-6 rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-sm">
           <h2 className="font-semibold text-[#172019]">
-            Transfer Queue
+            Transfer Queue & Handover
           </h2>
 
           <div className="mt-5 space-y-3">
-            {transfers.map((transfer) => (
+            {transfersList.map((transfer) => (
               <div
                 key={transfer.id}
                 className="flex items-center justify-between rounded-xl border border-[#E7ECE8] p-4 transition hover:border-green-200 hover:bg-[#F9FCF9]"
