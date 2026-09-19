@@ -91,13 +91,13 @@ HOSPITALS_DATA = [
 ]
 
 def seed_database():
-    print("🌱 Starting Karnataka Hospital Resource Seed Data Creation...")
+    print("Starting Karnataka Hospital Resource Seed Data Creation...")
 
     # Create tables if database connection is live
     try:
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"⚠️ Notice: DB connection skipped or offline ({e}). Running in-memory seed generator.")
+        print(f"Notice: DB connection skipped or offline ({e}). Running in-memory seed generator.")
 
     db = SessionLocal()
 
@@ -230,9 +230,9 @@ def seed_database():
         db.add_all(users_list)
         db.commit()
 
-        print("✅ SUCCESS: Seeded 10 Karnataka Hospitals, 250+ Beds, Resources, Blood Stock & 14 Pre-Seeded Accounts!")
+        print("[SUCCESS] Seeded 10 Karnataka Hospitals, 250+ Beds, Resources, Blood Stock & 14 Pre-Seeded Accounts!")
         print("-------------------------------------------------------------------------------------")
-        print("🔑 PRE-SEEDED CREDENTIALS SUMMARY:")
+        print("PRE-SEEDED CREDENTIALS SUMMARY:")
         print("  - Admin: username='admin', password='admin123'")
         print("  - Coordinators: username='coordinator_1' .. 'coordinator_10', password='coord123'")
         print("  - Dispatchers: username='dispatcher_1' .. 'dispatcher_3', password='dispatch123'")
@@ -240,7 +240,7 @@ def seed_database():
 
     except Exception as err:
         db.rollback()
-        print(f"❌ Error during seed generation: {err}")
+        print(f"[ERROR] Error during seed generation: {err}")
     finally:
         db.close()
 
