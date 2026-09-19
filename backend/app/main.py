@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth import router as auth_router
+from app.api.citizen_reports import router as citizen_reports_router
 from app.api.emergency import router as emergency_router
 from app.api.dispatch import router as dispatch_router
 from app.api.transfers import router as transfers_router
@@ -37,7 +39,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register existing API Routers under /api/v1
+# Register Auth & Citizen Reports Routers under /api/v1
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(citizen_reports_router, prefix="/api/v1")
+
+# Register core API Routers under /api/v1
 app.include_router(emergency_router, prefix="/api/v1")
 app.include_router(dispatch_router, prefix="/api/v1")
 app.include_router(transfers_router, prefix="/api/v1")
@@ -65,8 +71,4 @@ def root_health_check():
 
 
 # P4 — Wrap FastAPI with Socket.IO ASGI layer.
-# The combined app is the ASGI entry point used by uvicorn:
-#   uvicorn app.main:asgi_app --reload
-# Socket.IO requests are served at /ws/socket.io
-# All other requests fall through to FastAPI normally.
 asgi_app = create_asgi_app(app)
