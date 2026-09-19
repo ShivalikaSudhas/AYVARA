@@ -1,19 +1,34 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
-.env
+*.pyd
+.pytest_cache/
 venv/
 .venv/
+env/
 
-# Node
+# Node & Frontend
 node_modules/
 dist/
+dist-ssr/
+*.local
 
-# IDE
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & OS
 .vscode/
 .idea/
-
-# OS
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
