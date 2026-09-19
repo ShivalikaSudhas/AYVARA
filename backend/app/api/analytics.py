@@ -1,18 +1,12 @@
-"""P3 — Analytics & Forecasting reporting endpoints."""
-
 from typing import Optional
 from fastapi import APIRouter, Query
 from app.services.forecasting import predict_resource_utilization
 
-router = APIRouter(prefix="/analytics", tags=["Analytics & Forecasting"])
+router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-@router.get(
-    "/utilization",
-    summary="Get bed & department utilization metrics"
-)
+@router.get("/utilization")
 def get_utilization_metrics(hospital_id: Optional[str] = Query(None)):
-    """Returns real-time bed utilization breakdown by department and hospital."""
     return {
         "hospital_id": hospital_id or "all_hospitals",
         "total_capacity": 450,
@@ -34,12 +28,8 @@ def get_utilization_metrics(hospital_id: Optional[str] = Query(None)):
     }
 
 
-@router.get(
-    "/response-times",
-    summary="Get average ambulance response time metrics"
-)
+@router.get("/response-times")
 def get_response_time_metrics():
-    """Returns analytics on dispatch times, average ETA vs actual arrival time."""
     return {
         "average_dispatch_seconds": 42,
         "average_eta_minutes": 9.4,
@@ -50,13 +40,9 @@ def get_response_time_metrics():
     }
 
 
-@router.get(
-    "/forecasting",
-    summary="Get predictive resource demand & capacity alerts"
-)
+@router.get("/forecasting")
 def get_resource_forecasting(
     hospital_id: Optional[str] = Query(None),
     hours_ahead: int = Query(4, ge=1, le=24)
 ):
-    """Executes forecasting algorithm and returns projected utilization and bottleneck warnings."""
     return predict_resource_utilization(hospital_id=hospital_id, hours_ahead=hours_ahead)

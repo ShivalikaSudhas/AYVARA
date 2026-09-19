@@ -1,5 +1,3 @@
-"""P3 — Ambulance dispatch handling endpoints."""
-
 from datetime import datetime, timezone
 import uuid
 from typing import Dict, List
@@ -12,26 +10,17 @@ from app.schemas.dispatch import (
 )
 from app.api.emergency import EMERGENCY_STORE, EmergencyStatus
 
-router = APIRouter(prefix="/dispatch", tags=["Ambulance Dispatch"])
+router = APIRouter(prefix="/dispatch", tags=["Dispatch"])
 
 DISPATCH_STORE: Dict[str, dict] = {}
 
 
-@router.post(
-    "",
-    response_model=DispatchResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Dispatch ambulance & confirm bed reservation"
-)
+@router.post("", response_model=DispatchResponse, status_code=status.HTTP_201_CREATED)
 def create_dispatch(payload: DispatchCreate):
-    """
-    Confirms hospital selection for an emergency incident, reserves a bed,
-    assigns an ambulance unit, and initializes dispatch status.
-    """
     if payload.emergency_id not in EMERGENCY_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Emergency ID '{payload.emergency_id}' not found."
+            detail=f"Emergency '{payload.emergency_id}' not found"
         )
 
     emergency_rec = EMERGENCY_STORE[payload.emergency_id]
@@ -39,7 +28,6 @@ def create_dispatch(payload: DispatchCreate):
     reservation_id = f"res_{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc)
 
-    # Update emergency record status
     emergency_rec["status"] = EmergencyStatus.DISPATCHED
     emergency_rec["selected_hospital_id"] = payload.selected_hospital_id
 
@@ -60,42 +48,27 @@ def create_dispatch(payload: DispatchCreate):
     return DispatchResponse(**dispatch_record)
 
 
-@router.get(
-    "",
-    response_model=List[DispatchResponse],
-    summary="List all active ambulance dispatches"
-)
+@router.get("", response_model=List[DispatchResponse])
 def list_dispatches():
-    """Returns a list of all current ambulance dispatch units."""
     return [DispatchResponse(**d) for d in DISPATCH_STORE.values()]
 
 
-@router.get(
-    "/{dispatch_id}",
-    response_model=DispatchResponse,
-    summary="Get dispatch status by ID"
-)
+@router.get("/{dispatch_id}", response_model=DispatchResponse)
 def get_dispatch(dispatch_id: str):
-    """Retrieves dispatch tracking details by ID."""
     if dispatch_id not in DISPATCH_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Dispatch record '{dispatch_id}' not found."
+            detail=f"Dispatch '{dispatch_id}' not found"
         )
     return DispatchResponse(**DISPATCH_STORE[dispatch_id])
 
 
-@router.put(
-    "/{dispatch_id}/status",
-    response_model=DispatchResponse,
-    summary="Update dispatch status (en_route -> arrived -> completed)"
-)
+@router.put("/{dispatch_id}/status", response_model=DispatchResponse)
 def update_dispatch_status(dispatch_id: str, payload: DispatchStatusUpdate):
-    """Updates status for an active dispatch unit (e.g. arrived at hospital, completed handover)."""
     if dispatch_id not in DISPATCH_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Dispatch record '{dispatch_id}' not found."
+            detail=f"Dispatch '{dispatch_id}' not found"
         )
 
     dispatch_rec = DISPATCH_STORE[dispatch_id]
@@ -103,10 +76,8 @@ def update_dispatch_status(dispatch_id: str, payload: DispatchStatusUpdate):
     if payload.notes:
         dispatch_rec["notes"] = payload.notes
 
-    # Update associated emergency status if completed/arrived
     emergency_id = dispatch_rec["emergency_id"]
-    if emergency_id in EMERGENCY_STORE:
-        if payload.status == DispatchStatus.ARRIVED:
-            EMERGENCY_STORE[emergency_id]["status"] = EmergencyStatus.ARRIVED
+    if emergency_id in EMERGENCY_STORE and payload.status == DispatchStatus.ARRIVED:
+        EMERGENCY_STORE[emergency_id]["status"] = EmergencyStatus.ARRIVED
 
     return DispatchResponse(**dispatch_rec)

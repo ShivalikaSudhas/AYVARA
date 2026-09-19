@@ -1,11 +1,8 @@
-"""P3 — Hospital-to-resource matching algorithm service."""
-
 import math
 from typing import List, Optional
 from app.schemas.emergency import EmergencyCreate, HospitalMatchResult
 
 
-# Seed mock hospitals data for testing & fallback before P2 DB wiring
 MOCK_HOSPITALS = [
     {
         "id": "hosp_001",
@@ -51,8 +48,7 @@ MOCK_HOSPITALS = [
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate the great-circle distance between two points on Earth in kilometers."""
-    R = 6371.0  # Earth radius in kilometers
+    R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (
@@ -65,12 +61,9 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return round(R * c, 2)
 
 
-def estimate_eta_minutes(distance_km: float, city_speed_kmh: float = 35.0) -> int:
-    """Estimate ambulance arrival time in minutes given distance in km."""
-    travel_time_hours = distance_km / city_speed_kmh
-    dispatch_overhead_minutes = 2
-    total_minutes = int(round(travel_time_hours * 60)) + dispatch_overhead_minutes
-    return max(3, total_minutes)
+def estimate_eta_minutes(distance_km: float, speed_kmh: float = 35.0) -> int:
+    travel_time = (distance_km / speed_kmh) * 60
+    return max(3, int(round(travel_time + 2)))
 
 
 def calculate_match_score(
@@ -82,17 +75,9 @@ def calculate_match_score(
     blood_needed: Optional[str],
     hospital_blood_stock: dict
 ) -> tuple[float, List[str], bool]:
-    """
-    Computes a weighted match score (0-100) based on:
-    - Distance / Proximity (35%)
-    - Available Bed & ICU Capacity (35%)
-    - Specialty Coverage (15%)
-    - Blood Stock Availability (15%)
-    """
-    # 1. Proximity Score (0 to 100) — 100 for 0km, 0 for >= 25km
+
     distance_score = max(0.0, 100.0 - (distance_km * 4.0))
 
-    # 2. Bed Capacity Score (0 to 100)
     icu_needed = "icu" in [s.lower() for s in required_specialties]
     target_beds = available_icu_beds if icu_needed else available_beds
 
@@ -105,18 +90,16 @@ def calculate_match_score(
     else:
         bed_score = 100.0
 
-    # 3. Specialty Coverage Score (0 to 100)
-    matched_specialties = []
+    matched_specs = []
     if required_specialties:
         h_specs_lower = [s.lower() for s in hospital_specialties]
         for req in required_specialties:
             if req.lower() in h_specs_lower:
-                matched_specialties.append(req)
-        specialty_score = (len(matched_specialties) / len(required_specialties)) * 100.0
+                matched_specs.append(req)
+        specialty_score = (len(matched_specs) / len(required_specialties)) * 100.0
     else:
         specialty_score = 100.0
 
-    # 4. Blood Stock Score (0 to 100)
     has_blood = True
     if blood_needed:
         stock_count = hospital_blood_stock.get(blood_needed, 0)
@@ -125,7 +108,6 @@ def calculate_match_score(
     else:
         blood_score = 100.0
 
-    # Weighted Total Score
     total_score = (
         (distance_score * 0.35)
         + (bed_score * 0.35)
@@ -133,17 +115,13 @@ def calculate_match_score(
         + (blood_score * 0.15)
     )
 
-    return round(total_score, 1), matched_specialties, has_blood
+    return round(total_score, 1), matched_specs, has_blood
 
 
 def find_matching_hospitals(
     emergency: EmergencyCreate,
     hospitals: Optional[List[dict]] = None
 ) -> List[HospitalMatchResult]:
-    """
-    Ranks hospitals for a given emergency request using multi-criteria scoring algorithm.
-    Returns sorted list of HospitalMatchResult objects (highest match score first).
-    """
     hospital_list = hospitals or MOCK_HOSPITALS
     results: List[HospitalMatchResult] = []
 
@@ -166,7 +144,6 @@ def find_matching_hospitals(
             hospital_blood_stock=hosp["blood_stock"]
         )
 
-        # Only include hospitals with at least minimal capacity or score
         results.append(
             HospitalMatchResult(
                 hospital_id=hosp["id"],
@@ -183,6 +160,5 @@ def find_matching_hospitals(
             )
         )
 
-    # Sort descending by match score
     results.sort(key=lambda x: x.match_score, reverse=True)
     return results

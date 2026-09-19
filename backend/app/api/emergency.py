@@ -1,5 +1,3 @@
-"""P3 — Emergency request handling endpoints."""
-
 from datetime import datetime, timezone
 import uuid
 from typing import Dict, List
@@ -12,30 +10,18 @@ from app.schemas.emergency import (
 )
 from app.services.matching import find_matching_hospitals
 
-router = APIRouter(prefix="/emergency", tags=["Emergency & Matching"])
+router = APIRouter(prefix="/emergency", tags=["Emergency"])
 
-# In-memory emergency database for fast prototyping & demo
 EMERGENCY_STORE: Dict[str, dict] = {}
 
 
-@router.post(
-    "",
-    response_model=EmergencyMatchResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Submit emergency request & get ranked hospital matches"
-)
+@router.post("", response_model=EmergencyMatchResponse, status_code=status.HTTP_201_CREATED)
 def create_emergency_request(payload: EmergencyCreate):
-    """
-    Receives incoming emergency patient condition, location (lat/lon), required specialties,
-    and blood type. Runs the matching algorithm to return a ranked list of available hospitals.
-    """
     emergency_id = f"emg_{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc)
 
-    # 1. Execute matching engine algorithm
     matches = find_matching_hospitals(payload)
 
-    # 2. Store emergency record
     emergency_record = {
         "id": emergency_id,
         "patient_condition": payload.patient_condition,
@@ -61,13 +47,8 @@ def create_emergency_request(payload: EmergencyCreate):
     )
 
 
-@router.get(
-    "",
-    response_model=List[EmergencyDetailResponse],
-    summary="List all active emergency incidents"
-)
+@router.get("", response_model=List[EmergencyDetailResponse])
 def list_emergencies():
-    """Returns a list of all active emergency requests in the system."""
     return [
         EmergencyDetailResponse(
             id=rec["id"],
@@ -85,17 +66,12 @@ def list_emergencies():
     ]
 
 
-@router.get(
-    "/{emergency_id}",
-    response_model=EmergencyDetailResponse,
-    summary="Get emergency details by ID"
-)
+@router.get("/{emergency_id}", response_model=EmergencyDetailResponse)
 def get_emergency(emergency_id: str):
-    """Retrieves specific emergency incident details by ID."""
     if emergency_id not in EMERGENCY_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Emergency request '{emergency_id}' not found."
+            detail=f"Emergency '{emergency_id}' not found"
         )
     rec = EMERGENCY_STORE[emergency_id]
     return EmergencyDetailResponse(

@@ -1,5 +1,3 @@
-"""P3 — Emergency Pydantic schema definitions."""
-
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -22,30 +20,30 @@ class EmergencyStatus(str, Enum):
 
 
 class EmergencyCreate(BaseModel):
-    patient_condition: str = Field(..., example="Severe Cardiac Arrest")
-    severity: SeverityLevel = Field(..., example=SeverityLevel.CRITICAL)
-    latitude: float = Field(..., example=40.7306)
-    longitude: float = Field(..., example=-73.9352)
-    required_specialties: List[str] = Field(default_factory=list, example=["cardiology", "icu"])
-    blood_type_needed: Optional[str] = Field(None, example="O_negative")
+    patient_condition: str
+    severity: SeverityLevel
+    latitude: float
+    longitude: float
+    required_specialties: List[str] = Field(default_factory=list)
+    blood_type_needed: Optional[str] = None
 
 
 class HospitalMatchResult(BaseModel):
-    hospital_id: str = Field(..., example="hosp_001")
-    hospital_name: str = Field(..., example="City General Hospital")
-    latitude: float = Field(..., example=40.7128)
-    longitude: float = Field(..., example=-74.0060)
-    match_score: float = Field(..., example=95.4, description="Calculated score from 0 to 100")
-    distance_km: float = Field(..., example=3.2)
-    estimated_eta_minutes: int = Field(..., example=8)
-    available_icu_beds: int = Field(..., example=3)
-    total_available_beds: int = Field(..., example=14)
+    hospital_id: str
+    hospital_name: str
+    latitude: float
+    longitude: float
+    match_score: float
+    distance_km: float
+    estimated_eta_minutes: int
+    available_icu_beds: int
+    total_available_beds: int
     matched_specialties: List[str] = Field(default_factory=list)
-    has_blood_stock: bool = Field(default=True)
+    has_blood_stock: bool = True
 
 
 class EmergencyMatchResponse(BaseModel):
-    emergency_id: str = Field(..., example="emg_5541")
+    emergency_id: str
     patient_condition: str
     severity: SeverityLevel
     status: EmergencyStatus = EmergencyStatus.MATCHED

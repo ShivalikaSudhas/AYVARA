@@ -1,5 +1,3 @@
-"""P3 — Inter-hospital patient transfer workflow endpoints."""
-
 from datetime import datetime, timezone
 import uuid
 from typing import Dict, List, Optional
@@ -11,22 +9,13 @@ from app.schemas.transfer import (
     TransferStatusUpdate
 )
 
-router = APIRouter(prefix="/transfers", tags=["Inter-Hospital Transfers"])
+router = APIRouter(prefix="/transfers", tags=["Transfers"])
 
 TRANSFER_STORE: Dict[str, dict] = {}
 
 
-@router.post(
-    "",
-    response_model=TransferResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create inter-hospital patient transfer request"
-)
+@router.post("", response_model=TransferResponse, status_code=status.HTTP_201_CREATED)
 def create_transfer_request(payload: TransferCreate):
-    """
-    Initiates an inter-hospital transfer request when a hospital requires specialized
-    care or beds at another facility.
-    """
     transfer_id = f"trf_{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc)
 
@@ -49,13 +38,8 @@ def create_transfer_request(payload: TransferCreate):
     return TransferResponse(**record)
 
 
-@router.get(
-    "",
-    response_model=List[TransferResponse],
-    summary="List inter-hospital transfer requests"
-)
-def list_transfers(hospital_id: Optional[str] = Query(None, description="Filter transfers by origin or destination hospital ID")):
-    """Returns list of transfer requests, optionally filtered by hospital ID."""
+@router.get("", response_model=List[TransferResponse])
+def list_transfers(hospital_id: Optional[str] = Query(None)):
     results = list(TRANSFER_STORE.values())
     if hospital_id:
         results = [
@@ -65,32 +49,22 @@ def list_transfers(hospital_id: Optional[str] = Query(None, description="Filter 
     return [TransferResponse(**t) for t in results]
 
 
-@router.get(
-    "/{transfer_id}",
-    response_model=TransferResponse,
-    summary="Get transfer request details"
-)
+@router.get("/{transfer_id}", response_model=TransferResponse)
 def get_transfer(transfer_id: str):
-    """Retrieves specific inter-hospital transfer request details."""
     if transfer_id not in TRANSFER_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transfer request '{transfer_id}' not found."
+            detail=f"Transfer '{transfer_id}' not found"
         )
     return TransferResponse(**TRANSFER_STORE[transfer_id])
 
 
-@router.put(
-    "/{transfer_id}/status",
-    response_model=TransferResponse,
-    summary="Update transfer status (accepted, rejected, in_transit, completed)"
-)
+@router.put("/{transfer_id}/status", response_model=TransferResponse)
 def update_transfer_status(transfer_id: str, payload: TransferStatusUpdate):
-    """Destination hospital coordinator accepts/rejects transfer or updates transit progress."""
     if transfer_id not in TRANSFER_STORE:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transfer request '{transfer_id}' not found."
+            detail=f"Transfer '{transfer_id}' not found"
         )
 
     rec = TRANSFER_STORE[transfer_id]
