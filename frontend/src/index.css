@@ -1,7 +1,12 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
@@ -15,4 +20,8 @@ body {
   font-family: Inter, Arial, sans-serif;
   background: #f6f8f6;
   color: #172019;
+}
+
+.section-label {
+  font-family: "Space Grotesk", Inter, Arial, sans-serif;
 }
