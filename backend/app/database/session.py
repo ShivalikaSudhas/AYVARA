@@ -1,7 +1,10 @@
-from sqlalchemy.orm import Session  # type: ignore[import-not-found]
+from sqlalchemy.orm import Session, sessionmaker  # pyright: ignore[reportMissingImports]
 from app.database.connection import engine
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def get_db():
-    db = Session(bind=engine)
+    db = SessionLocal()
     try:
         yield db
     finally:
