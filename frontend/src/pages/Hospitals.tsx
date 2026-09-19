@@ -1,5 +1,3 @@
-import { Building2, Search, Plus, MapPin } from "lucide-react";
-
 import Sidebar from "../components/common/Sidebar";
 
 const hospitals = [
@@ -7,28 +5,32 @@ const hospitals = [
     name: "City General Hospital",
     location: "Central District",
     beds: 32,
-    departments: 8,
+    icu: 6,
+    utilization: 72,
     status: "Available",
   },
   {
     name: "St. Mary's Medical Center",
     location: "North District",
     beds: 18,
-    departments: 6,
+    icu: 4,
+    utilization: 81,
     status: "Available",
   },
   {
     name: "Central Emergency Hospital",
     location: "East District",
     beds: 7,
-    departments: 9,
+    icu: 2,
+    utilization: 94,
     status: "Limited",
   },
   {
     name: "Green Valley Hospital",
     location: "West District",
     beds: 25,
-    departments: 5,
+    icu: 5,
+    utilization: 64,
     status: "Available",
   },
 ];
@@ -38,98 +40,102 @@ export default function Hospitals() {
     <div className="min-h-screen bg-[#F6F8F6]">
       <Sidebar />
 
-      <main className="ml-64 p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      <main className="px-6 pb-10 pt-8">
+        <div className="mx-auto max-w-7xl">
+
+          {/* Header */}
           <div>
-            <p className="text-sm font-semibold tracking-wide text-green-700">
-              FACILITIES
+            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+              Hospitals
             </p>
 
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#172019]">
-              Hospitals
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
+              Connected Hospitals
             </h1>
 
             <p className="mt-2 text-sm text-[#647067]">
-              Manage connected hospitals and their departments.
+              View hospital availability and current resource capacity.
             </p>
           </div>
 
-          <button className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-800">
-            <Plus size={18} />
-            Add Hospital
-          </button>
-        </div>
+          {/* Hospital List */}
+          <section className="mt-8">
+            <div className="mb-4">
+              <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+                Hospital Network
+              </p>
+            </div>
 
-        {/* Search */}
-        <div className="mt-8 flex items-center gap-3 rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 shadow-sm">
-          <Search size={18} className="text-[#8A958E]" />
+            <div className="rounded-2xl border border-[#DDE5DF] bg-white">
 
-          <input
-            placeholder="Search hospitals..."
-            className="w-full bg-transparent text-sm text-[#172019] outline-none placeholder:text-[#8A958E]"
-          />
-        </div>
-
-        {/* Hospital Cards */}
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {hospitals.map((hospital) => (
-            <div
-              key={hospital.name}
-              className="rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex gap-4">
-                  <div className="rounded-xl bg-green-50 p-3 text-green-700">
-                    <Building2 size={24} />
-                  </div>
-
-                  <div>
-                    <h2 className="font-semibold text-[#172019]">
-                      {hospital.name}
-                    </h2>
-
-                    <div className="mt-1 flex items-center gap-1 text-xs text-[#8A958E]">
-                      <MapPin size={13} />
-                      {hospital.location}
-                    </div>
-                  </div>
-                </div>
-
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    hospital.status === "Available"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-orange-50 text-orange-700"
+              {hospitals.map((hospital, index) => (
+                <div
+                  key={hospital.name}
+                  className={`px-6 py-6 ${
+                    index !== hospitals.length - 1
+                      ? "border-b border-[#E7ECE8]"
+                      : ""
                   }`}
                 >
-                  {hospital.status}
-                </span>
-              </div>
+                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-[#F6F8F6] p-4">
-                  <p className="text-xs text-[#8A958E]">
-                    Available Beds
-                  </p>
+                    {/* Hospital */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <h2 className="font-semibold text-[#172019]">
+                          {hospital.name}
+                        </h2>
 
-                  <p className="mt-1 text-xl font-bold text-[#172019]">
-                    {hospital.beds}
-                  </p>
+                        <span className="text-xs font-semibold text-green-700">
+                          {hospital.status}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-sm text-[#647067]">
+                        {hospital.location}
+                      </p>
+                    </div>
+
+                    {/* Resources */}
+                    <div className="flex items-center gap-8">
+                      <div>
+                        <p className="text-xs text-[#89938C]">
+                          Available Beds
+                        </p>
+
+                        <p className="mt-1 text-xl font-semibold text-[#172019]">
+                          {hospital.beds}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-[#89938C]">
+                          ICU Beds
+                        </p>
+
+                        <p className="mt-1 text-xl font-semibold text-[#172019]">
+                          {hospital.icu}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-[#89938C]">
+                          Utilization
+                        </p>
+
+                        <p className="mt-1 text-xl font-semibold text-green-700">
+                          {hospital.utilization}%
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
+              ))}
 
-                <div className="rounded-xl bg-[#F6F8F6] p-4">
-                  <p className="text-xs text-[#8A958E]">
-                    Departments
-                  </p>
-
-                  <p className="mt-1 text-xl font-bold text-[#172019]">
-                    {hospital.departments}
-                  </p>
-                </div>
-              </div>
             </div>
-          ))}
+          </section>
+
         </div>
       </main>
     </div>
