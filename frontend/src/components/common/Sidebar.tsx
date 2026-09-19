@@ -1,115 +1,120 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Building2,
   Siren,
   ArrowRightLeft,
   BarChart3,
-  Settings,
   LogOut,
   HeartPulse,
 } from "lucide-react";
 
 const navigation = [
-  {
-    name: "Dashboard",
-    path: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Resources",
-    path: "/hospital-admin",
-    icon: Building2,
-  },
-  {
-    name: "Emergency",
-    path: "/emergency",
-    icon: Siren,
-  },
-  {
-    name: "Transfers",
-    path: "/transfers",
-    icon: ArrowRightLeft,
-  },
-  {
-    name: "Analytics",
-    path: "/analytics",
-    icon: BarChart3,
-  },
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Resources", path: "/hospital-admin", icon: Building2 },
+  { name: "Hospitals", path: "/hospitals", icon: Building2 },
+  { name: "Emergency", path: "/emergency", icon: Siren },
+  { name: "Transfers", path: "/transfers", icon: ArrowRightLeft },
+  { name: "Analytics", path: "/analytics", icon: BarChart3 },
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  function handleLogoClick() {
+    if (location.pathname !== "/") {
+      navigate("/");
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r border-[#DDE5DF] bg-white">
-      <div className="border-b border-[#DDE5DF] px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-700 text-white">
-            <HeartPulse size={21} />
+    <header className="sticky top-4 z-50 px-6">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/70 bg-white/65 px-5 py-3 shadow-lg shadow-black/5 backdrop-blur-xl">
+
+        {/* Logo */}
+        <button
+          onClick={handleLogoClick}
+          className="flex items-center gap-3"
+          aria-label="Go to dashboard"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-800 text-white">
+            <HeartPulse size={18} />
           </div>
 
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-[#172019]">
+          <div className="hidden text-left sm:block">
+            <h1 className="text-sm font-bold tracking-tight text-[#172019]">
               AYVARA
             </h1>
 
-            <p className="text-xs text-[#647067]">
-              Hospital Coordination
-            </p>
           </div>
+        </button>
+
+        {/* Navigation */}
+        <div className="flex items-center gap-1">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+
+            const isActive =
+              item.path === "/"
+                ? location.pathname === "/"
+                : location.pathname.startsWith(item.path);
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className="relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="active-nav"
+                    className="absolute inset-0 rounded-full bg-green-800"
+                    transition={{
+                      layout: {
+                        duration: 0.25,
+                        ease: "easeInOut",
+                      },
+                    }}
+                  />
+                )}
+
+                <span
+                  className={`relative z-10 flex items-center gap-2 whitespace-nowrap transition-colors duration-200 ${
+                    isActive
+                      ? "text-white"
+                      : "text-[#647067] hover:text-[#172019]"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {item.name}
+                </span>
+              </NavLink>
+            );
+          })}
         </div>
-      </div>
 
-      <div className="border-b border-[#DDE5DF] px-5 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#89938C]">
-          Coordinator
-        </p>
+        {/* Status + Sign Out */}
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 rounded-full bg-white/60 px-3 py-2 sm:flex">
+          </div>
 
-        <p className="mt-1 text-sm font-semibold text-[#172019]">
-          City General Hospital
-        </p>
-      </div>
+          <NavLink
+            to="/login"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#647067] transition hover:bg-red-50 hover:text-red-600"
+            title="Sign Out"
+          >
+            <LogOut size={17} />
+          </NavLink>
+        </div>
 
-      <nav className="flex-1 space-y-1 p-4">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-green-50 text-green-800"
-                    : "text-[#647067] hover:bg-green-50 hover:text-green-800"
-                }`
-              }
-            >
-              <Icon size={19} />
-              {item.name}
-            </NavLink>
-          );
-        })}
       </nav>
-
-      <div className="border-t border-[#DDE5DF] p-4">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-
-          <span className="text-sm font-medium text-[#172019]">
-            System Online
-          </span>
-        </div>
-
-        <NavLink
-          to="/login"
-          className="mt-4 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#647067] transition hover:bg-red-50 hover:text-red-600"
-        >
-          <LogOut size={17} />
-          Sign Out
-        </NavLink>
-      </div>
-    </aside>
+    </header>
   );
 }
