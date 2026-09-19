@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
+import Sidebar from "./components/common/Sidebar";
+
 import Dashboard from "./pages/Dashboard";
 import Hospitals from "./pages/Hospitals";
 import Emergency from "./pages/Emergency";
@@ -37,81 +39,93 @@ function PageTransition({
 function AnimatedRoutes() {
   const location = useLocation();
 
+  const isLoginPage = location.pathname === "/login";
+
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
-        
-        {/* Login */}
-        <Route path="/login" element={<Login />} />
+    <>
+      {/* Floating Navbar */}
+      {!isLoginPage && <Sidebar />}
 
-        {/* Dashboard */}
-        <Route
-          path="/"
-          element={
-            <PageTransition>
-              <Dashboard />
-            </PageTransition>
-          }
-        />
+      {/* Pages */}
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes
+          location={location}
+          key={location.pathname}
+        >
+          {/* Login */}
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-        {/* Hospitals */}
-        <Route
-          path="/hospitals"
-          element={
-            <PageTransition>
-              <Hospitals />
-            </PageTransition>
-          }
-        />
+          {/* Dashboard */}
+          <Route
+            path="/"
+            element={
+              <PageTransition>
+                <Dashboard />
+              </PageTransition>
+            }
+          />
 
-        {/* Emergency */}
-        <Route
-          path="/emergency"
-          element={
-            <PageTransition>
-              <Emergency />
-            </PageTransition>
-          }
-        />
+          {/* Hospitals */}
+          <Route
+            path="/hospitals"
+            element={
+              <PageTransition>
+                <Hospitals />
+              </PageTransition>
+            }
+          />
 
-        {/* Transfers */}
-        <Route
-          path="/transfers"
-          element={
-            <PageTransition>
-              <Transfers />
-            </PageTransition>
-          }
-        />
+          {/* Emergency */}
+          <Route
+            path="/emergency"
+            element={
+              <PageTransition>
+                <Emergency />
+              </PageTransition>
+            }
+          />
 
-        {/* Analytics */}
-        <Route
-          path="/analytics"
-          element={
-            <PageTransition>
-              <Analytics />
-            </PageTransition>
-          }
-        />
+          {/* Transfers */}
+          <Route
+            path="/transfers"
+            element={
+              <PageTransition>
+                <Transfers />
+              </PageTransition>
+            }
+          />
 
-        {/* Resources */}
-        <Route
-          path="/hospital-admin"
-          element={
-            <PageTransition>
-              <HospitalAdmin />
-            </PageTransition>
-          }
-        />
+          {/* Analytics */}
+          <Route
+            path="/analytics"
+            element={
+              <PageTransition>
+                <Analytics />
+              </PageTransition>
+            }
+          />
 
-        {/* Unknown routes */}
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
+          {/* Hospital Resources */}
+          <Route
+            path="/hospital-admin"
+            element={
+              <PageTransition>
+                <HospitalAdmin />
+              </PageTransition>
+            }
+          />
 
-      </Routes>
-    </AnimatePresence>
+          {/* Unknown route */}
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 }
 
