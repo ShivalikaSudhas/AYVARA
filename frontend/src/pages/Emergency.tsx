@@ -1,477 +1,653 @@
 import { useState } from "react";
 import {
-  Building2,
-  CheckCircle2,
-  Clock,
+  AlertTriangle,
+  Ambulance,
+  Clock3,
   MapPin,
   Plus,
   Siren,
   X,
+  Loader2,
 } from "lucide-react";
-import Sidebar from "../components/common/Sidebar";
+
+import AmbulanceMap from "../components/map/AmbulanceMap";
 import {
   createEmergencyAndMatch,
-  HospitalMatchResult,
+  type EmergencyMatchRequest,
+  type HospitalMatchResult,
 } from "../services/api";
 
-export default function Emergency() {
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [matchResults, setMatchResults] = useState<HospitalMatchResult[] | null>(
-    null
-  );
+interface Emergency {
+  id: string;
+  type: string;
+  location: string;
+  priority: "Critical" | "High" | "Moderate";
+  status: "Dispatched" | "Waiting" | "Resolved";
+  ambulance: string;
+  time: string;
+}
 
-  const [condition, setCondition] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [priority, setPriority] = useState<
-    "critical" | "high" | "moderate" | "low"
-  >("critical");
-  const [specialties, setSpecialties] = useState("");
+const emergencies: Emergency[] = [
+  {
+    id: "ER-1042",
+    type: "Road Accident",
+    location: "MG Road",
+    priority: "Critical",
+    status: "Dispatched",
+    ambulance: "AMB-17",
+    time: "2 min ago",
+  },
+  {
+    id: "ER-1041",
+    type: "Cardiac Emergency",
+    location: "Indiranagar",
+    priority: "High",
+    status: "Waiting",
+    ambulance: "AMB-12",
+    time: "8 min ago",
+  },
+  {
+    id: "ER-1039",
+    type: "Severe Trauma",
+    location: "Koramangala",
+    priority: "High",
+    status: "Dispatched",
+    ambulance: "AMB-08",
+    time: "14 min ago",
+  },
+  {
+    id: "ER-1037",
+    type: "Respiratory Emergency",
+    location: "Whitefield",
+    priority: "Moderate",
+    status: "Resolved",
+    ambulance: "AMB-21",
+    time: "31 min ago",
+  },
+];
+
+export default function Emergency() {
+  const [showNewEmergency, setShowNewEmergency] = useState(false);
+
+  const [patientCondition, setPatientCondition] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [priority, setPriority] =
+    useState<EmergencyMatchRequest["priority"]>("critical");
+
+  const [specialty, setSpecialty] = useState("");
   const [bloodType, setBloodType] = useState("");
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  const [matches, setMatches] = useState<HospitalMatchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const criticalCount = emergencies.filter(
+    (emergency) => emergency.priority === "Critical"
+  ).length;
+
+  const highCount = emergencies.filter(
+    (emergency) => emergency.priority === "High"
+  ).length;
+
+  const activeCount = emergencies.filter(
+    (emergency) => emergency.status !== "Resolved"
+  ).length;
+
+  function handleLocationSelect(lat: number, lng: number) {
+    setLatitude(Number(lat.toFixed(6)));
+    setLongitude(Number(lng.toFixed(6)));
+  }
+
+  async function handleCreateEmergency() {
+    setError("");
+
+    if (!patientCondition.trim()) {
+      setError("Please enter the patient condition or incident.");
+      return;
+    }
+
+    if (latitude === null || longitude === null) {
+      setError("Please select the incident location on the map.");
+      return;
+    }
+
+    if (!specialty) {
+      setError("Please select a required specialty.");
+      return;
+    }
 
     setLoading(true);
 
     try {
-      const requiredSpecialties = specialties
-        .split(",")
-        .map((specialty) => specialty.trim())
-        .filter(Boolean);
-
-      const results = await createEmergencyAndMatch({
-        patient_condition: condition,
-        latitude: Number(lat),
-        longitude: Number(lng),
-        priority,
-        required_specialties: requiredSpecialties,
+      const payload: EmergencyMatchRequest = {
+        patient_condition: patientCondition,
+        latitude,
+        longitude,
+        required_specialties: [specialty],
         blood_type_needed: bloodType || undefined,
-      });
+        priority,
+      };
 
-      setMatchResults(results);
-    } catch (error) {
-      console.error("Emergency matching failed:", error);
+      const hospitalMatches = await createEmergencyAndMatch(payload);
+
+      setMatches(hospitalMatches);
+      setShowNewEmergency(false);
+
+      // Reset form
+      setPatientCondition("");
+      setLatitude(null);
+      setLongitude(null);
+      setPriority("critical");
+      setSpecialty("");
+      setBloodType("");
+    } catch (err) {
+      console.error(err);
+      setError("Unable to process the emergency request.");
     } finally {
       setLoading(false);
     }
   }
 
-  function closeModal() {
-    setShowModal(false);
-    setMatchResults(null);
-  }
-
   return (
-    <div className="min-h-screen bg-[#F6F8F6]">
-      <Sidebar />
+    <div className="min-h-screen bg-[#f6f8f6] text-[#172019]">
+      <main className="mx-auto max-w-7xl px-6 pb-12 pt-10">
+        {/* Header */}
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+          <div>
+            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+              Emergency Response
+            </p>
 
-      <main className="px-6 pb-10 pt-8">
-        <div className="mx-auto max-w-7xl">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                Emergency Response
-              </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
+              Emergency Requests
+            </h1>
 
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
-                Emergency Requests
-              </h1>
-
-              <p className="mt-2 text-sm text-[#647067]">
-                Create and coordinate emergency requests with hospital
-                matching.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-800"
-            >
-              <Plus size={17} />
-              New Emergency
-            </button>
+            <p className="mt-2 text-sm text-[#647067]">
+              Create and coordinate emergency transport requests.
+            </p>
           </div>
 
-          {/* Emergency Workflow */}
+          <button
+            onClick={() => {
+              setError("");
+              setShowNewEmergency(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-green-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
+          >
+            <Plus size={17} />
+            New Emergency
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#E8D8D8] bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-[#647067]">Critical</p>
+
+                <p className="mt-2 text-3xl font-semibold text-red-700">
+                  {criticalCount}
+                </p>
+              </div>
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <Siren size={20} />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#E8DFD4] bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-[#647067]">High Priority</p>
+
+                <p className="mt-2 text-3xl font-semibold text-orange-600">
+                  {highCount}
+                </p>
+              </div>
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                <AlertTriangle size={20} />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-[#647067]">Active Requests</p>
+
+                <p className="mt-2 text-3xl font-semibold text-green-700">
+                  {activeCount}
+                </p>
+              </div>
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-700">
+                <Ambulance size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Emergency Queue */}
+        <section className="mt-8">
+          <div className="mb-4">
+            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+              Active Queue
+            </p>
+
+            <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+              Emergency Requests
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {emergencies.map((emergency) => (
+              <EmergencyCard
+                key={emergency.id}
+                emergency={emergency}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Hospital Matches */}
+        {matches.length > 0 && (
           <section className="mt-8">
             <div className="mb-4">
               <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                Emergency Workflow
+                Hospital Matching
               </p>
+
+              <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+                Recommended Hospitals
+              </h2>
             </div>
 
-            <div className="rounded-2xl border border-[#DDE5DF] bg-white">
-              <div className="border-b border-[#E7ECE8] px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50 text-green-700">
-                    <Siren size={19} />
+            <div className="grid gap-4 md:grid-cols-2">
+              {matches.map((hospital) => (
+                <div
+                  key={hospital.hospital_id}
+                  className="rounded-2xl border border-[#DDE5DF] bg-white p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-[#172019]">
+                        {hospital.hospital_name}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-[#647067]">
+                        {hospital.distance_km} km ·{" "}
+                        {hospital.estimated_eta_minutes} min ETA
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                      {hospital.match_score}% Match
+                    </span>
                   </div>
 
-                  <div>
-                    <h2 className="text-base font-semibold text-[#172019]">
-                      Emergency Triage
-                    </h2>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-[#F6F8F6] p-3">
+                      <p className="text-xs text-[#89938C]">
+                        Available Beds
+                      </p>
 
-                    <p className="mt-1 text-sm text-[#647067]">
-                      Submit an emergency to find suitable hospitals based on
-                      location, capacity, specialties, and blood availability.
-                    </p>
+                      <p className="mt-1 font-semibold text-[#172019]">
+                        {hospital.total_available_beds}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-[#F6F8F6] p-3">
+                      <p className="text-xs text-[#89938C]">
+                        ICU Beds
+                      </p>
+
+                      <p className="mt-1 font-semibold text-[#172019]">
+                        {hospital.available_icu_beds}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs text-[#647067]">
+                    Specialty:{" "}
+                    {hospital.matched_specialties.join(", ")}
+                  </div>
+
+                  <div className="mt-1 text-xs text-[#647067]">
+                    Blood stock:{" "}
+                    <span
+                      className={
+                        hospital.has_blood_stock
+                          ? "font-medium text-green-700"
+                          : "font-medium text-red-600"
+                      }
+                    >
+                      {hospital.has_blood_stock
+                        ? "Available"
+                        : "Unavailable"}
+                    </span>
                   </div>
                 </div>
-              </div>
-
-              <div className="px-6 py-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <p className="text-sm font-semibold text-green-700">
-                      01
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-[#172019]">
-                      Submit Request
-                    </p>
-                    <p className="mt-1 text-xs text-[#89938C]">
-                      Enter patient and incident details.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-green-700">
-                      02
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-[#172019]">
-                      Match Hospitals
-                    </p>
-                    <p className="mt-1 text-xs text-[#89938C]">
-                      Backend evaluates available hospitals.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-green-700">
-                      03
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-[#172019]">
-                      Review Matches
-                    </p>
-                    <p className="mt-1 text-xs text-[#89938C]">
-                      Compare the returned hospital matches.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </section>
+        )}
 
-          {/* Match Results */}
-          {matchResults && (
-            <section className="mt-8">
-              <div className="mb-4">
-                <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                  Matching Results
-                </p>
-
-                <p className="mt-2 text-sm text-[#647067]">
-                  Hospitals returned by the emergency matching service.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {matchResults.length === 0 ? (
-                  <div className="rounded-2xl border border-[#DDE5DF] bg-white px-6 py-8 text-sm text-[#89938C]">
-                    No matching hospitals were found.
-                  </div>
-                ) : (
-                  matchResults.map((result, index) => (
-                    <div
-                      key={result.hospital_id}
-                      className="rounded-2xl border border-[#DDE5DF] bg-white px-6 py-5"
-                    >
-                      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-semibold text-green-700">
-                              #{index + 1}
-                            </span>
-
-                            <h2 className="font-semibold text-[#172019]">
-                              {result.hospital_name}
-                            </h2>
-                          </div>
-
-                          <p className="mt-1 text-xs text-[#89938C]">
-                            Hospital ID: {result.hospital_id}
-                          </p>
-                        </div>
-
-                        <span className="text-sm font-semibold text-green-700">
-                          {result.match_score}% Match
-                        </span>
-                      </div>
-
-                      <div className="mt-5 grid gap-4 border-t border-[#E7ECE8] pt-4 md:grid-cols-4">
-                        <div className="flex items-center gap-2 text-xs text-[#647067]">
-                          <MapPin size={14} className="text-green-700" />
-                          {result.distance_km} km away
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-[#647067]">
-                          <Clock size={14} className="text-green-700" />
-                          ETA: {result.estimated_eta_minutes} mins
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-[#647067]">
-                          <Building2 size={14} className="text-green-700" />
-                          {result.available_icu_beds} ICU beds free
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs text-green-700">
-                          <CheckCircle2 size={14} />
-                          {result.has_blood_stock
-                            ? "Blood stock available"
-                            : "Blood stock unavailable"}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-          )}
-        </div>
+        {/* Map */}
+        <section className="mt-8">
+          <AmbulanceMap
+            latitude={latitude ?? 12.9716}
+            longitude={longitude ?? 77.5946}
+            hospitals={matches}
+            onLocationSelect={handleLocationSelect}
+          />
+        </section>
       </main>
 
       {/* New Emergency Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 px-6"
-          onClick={closeModal}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-[#E7ECE8] pb-4">
+      {showNewEmergency && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/30 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between">
               <div>
                 <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
                   Emergency Response
                 </p>
 
-                <h2 className="mt-2 text-xl font-semibold text-[#172019]">
-                  {matchResults ? "Hospital Matches" : "New Emergency"}
+                <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+                  Patient Condition / Incident
                 </h2>
               </div>
 
               <button
-                onClick={closeModal}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[#89938C] transition hover:bg-[#F6F8F6] hover:text-[#172019]"
+                onClick={() => setShowNewEmergency(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[#647067] transition hover:bg-gray-100 hover:text-[#172019]"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {!matchResults ? (
-              <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-                <div>
-                  <label className="text-sm font-medium text-[#172019]">
-                    Patient Condition / Incident
+            <div className="mt-6 space-y-5">
+              {/* Patient Condition */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                  Patient Condition / Incident
+                </label>
+
+                <textarea
+                  value={patientCondition}
+                  onChange={(e) =>
+                    setPatientCondition(e.target.value)
+                  }
+                  rows={3}
+                  placeholder="e.g. Severe road accident with suspected spinal injury"
+                  className="w-full resize-none rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none transition focus:border-green-700"
+                />
+              </div>
+
+              {/* Coordinates */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-[#172019]">
+                    Incident Location
                   </label>
 
-                  <input
-                    type="text"
-                    value={condition}
-                    onChange={(event) => setCondition(event.target.value)}
-                    placeholder="e.g. Acute Cardiac Emergency"
-                    required
-                    className="mt-2 w-full rounded-lg border border-[#DDE5DF] px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
-                  />
+                  <span className="text-xs text-[#89938C]">
+                    Click map to select
+                  </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium text-[#172019]">
-                      Latitude
-                    </label>
-
-                    <input
-                      type="number"
-                      step="any"
-                      value={lat}
-                      onChange={(event) => setLat(event.target.value)}
-                      placeholder="e.g. 12.9716"
-                      required
-                      className="mt-2 w-full rounded-lg border border-[#DDE5DF] px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <MapPin
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
                     />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-[#172019]">
-                      Longitude
-                    </label>
-
-                    <input
-                      type="number"
-                      step="any"
-                      value={lng}
-                      onChange={(event) => setLng(event.target.value)}
-                      placeholder="e.g. 77.5946"
-                      required
-                      className="mt-2 w-full rounded-lg border border-[#DDE5DF] px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label className="text-sm font-medium text-[#172019]">
-                      Priority
-                    </label>
-
-                    <select
-                      value={priority}
-                      onChange={(event) =>
-                        setPriority(
-                          event.target.value as
-                            | "critical"
-                            | "high"
-                            | "moderate"
-                            | "low"
-                        )
-                      }
-                      className="mt-2 w-full rounded-lg border border-[#DDE5DF] bg-white px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
-                    >
-                      <option value="critical">Critical</option>
-                      <option value="high">High</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-[#172019]">
-                      Required Specialties
-                    </label>
 
                     <input
                       type="text"
-                      value={specialties}
-                      onChange={(event) =>
-                        setSpecialties(event.target.value)
+                      value={
+                        latitude !== null
+                          ? latitude
+                          : ""
                       }
-                      placeholder="cardiology, icu"
-                      className="mt-2 w-full rounded-lg border border-[#DDE5DF] px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                      readOnly
+                      placeholder="Latitude"
+                      className="w-full rounded-xl border border-[#DDE5DF] bg-[#F8FAF8] py-3 pl-9 pr-3 text-sm text-[#647067] outline-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="text-sm font-medium text-[#172019]">
-                      Blood Type Needed
-                    </label>
+                  <div className="relative">
+                    <MapPin
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
+                    />
 
-                    <select
-                      value={bloodType}
-                      onChange={(event) => setBloodType(event.target.value)}
-                      className="mt-2 w-full rounded-lg border border-[#DDE5DF] bg-white px-3 py-2.5 text-sm text-[#172019] outline-none transition focus:border-green-600 focus:ring-1 focus:ring-green-600"
-                    >
-                      <option value="">Not specified</option>
-                      <option value="O_negative">O- Negative</option>
-                      <option value="A_positive">A+ Positive</option>
-                      <option value="B_positive">B+ Positive</option>
-                      <option value="AB_positive">AB+ Positive</option>
-                    </select>
+                    <input
+                      type="text"
+                      value={
+                        longitude !== null
+                          ? longitude
+                          : ""
+                      }
+                      readOnly
+                      placeholder="Longitude"
+                      className="w-full rounded-xl border border-[#DDE5DF] bg-[#F8FAF8] py-3 pl-9 pr-3 text-sm text-[#647067] outline-none"
+                    />
                   </div>
-                </div>
-
-                <div className="flex justify-end gap-3 border-t border-[#E7ECE8] pt-5">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-lg border border-[#DDE5DF] px-4 py-2.5 text-sm font-medium text-[#647067] transition hover:bg-[#F6F8F6]"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Finding Hospitals..." : "Find Hospitals"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {matchResults.length === 0 ? (
-                  <div className="rounded-xl border border-[#DDE5DF] px-5 py-6 text-sm text-[#89938C]">
-                    No matching hospitals were found.
-                  </div>
-                ) : (
-                  matchResults.map((result, index) => (
-                    <div
-                      key={result.hospital_id}
-                      className="rounded-xl border border-[#DDE5DF] px-5 py-5"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-semibold text-green-700">
-                              #{index + 1}
-                            </span>
-
-                            <h3 className="font-semibold text-[#172019]">
-                              {result.hospital_name}
-                            </h3>
-                          </div>
-
-                          <p className="mt-1 text-xs text-[#89938C]">
-                            {result.hospital_id}
-                          </p>
-                        </div>
-
-                        <span className="text-sm font-semibold text-green-700">
-                          {result.match_score}% Match
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 border-t border-[#E7ECE8] pt-4 text-xs text-[#647067] md:grid-cols-2">
-                        <span>
-                          Distance: {result.distance_km} km
-                        </span>
-
-                        <span>
-                          ETA: {result.estimated_eta_minutes} mins
-                        </span>
-
-                        <span>
-                          ICU beds: {result.available_icu_beds}
-                        </span>
-
-                        <span className="text-green-700">
-                          {result.has_blood_stock
-                            ? "Blood stock available"
-                            : "Blood stock unavailable"}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                <div className="flex justify-end border-t border-[#E7ECE8] pt-5">
-                  <button
-                    onClick={() => setMatchResults(null)}
-                    className="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-800"
-                  >
-                    New Emergency
-                  </button>
                 </div>
               </div>
-            )}
+
+              {/* Priority */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                  Priority
+                </label>
+
+                <select
+                  value={priority}
+                  onChange={(e) =>
+                    setPriority(
+                      e.target
+                        .value as EmergencyMatchRequest["priority"]
+                    )
+                  }
+                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                >
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+
+              {/* Required Specialty */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                  Required Specialties
+                </label>
+
+                <select
+                  value={specialty}
+                  onChange={(e) =>
+                    setSpecialty(e.target.value)
+                  }
+                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                >
+                  <option value="">
+                    Select specialty
+                  </option>
+                  <option value="Cardiology">
+                    Cardiology
+                  </option>
+                  <option value="Neurology">
+                    Neurology
+                  </option>
+                  <option value="Trauma">
+                    Trauma
+                  </option>
+                  <option value="Orthopedics">
+                    Orthopedics
+                  </option>
+                  <option value="Pulmonology">
+                    Pulmonology
+                  </option>
+                  <option value="General Surgery">
+                    General Surgery
+                  </option>
+                  <option value="Emergency Medicine">
+                    Emergency Medicine
+                  </option>
+                </select>
+              </div>
+
+              {/* Blood Type */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                  Blood Type Needed
+                </label>
+
+                <select
+                  value={bloodType}
+                  onChange={(e) =>
+                    setBloodType(e.target.value)
+                  }
+                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                >
+                  <option value="">
+                    No blood required
+                  </option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="mt-7 flex justify-end gap-3">
+              <button
+                onClick={() => setShowNewEmergency(false)}
+                className="rounded-full border border-[#DDE5DF] px-5 py-2.5 text-sm font-medium text-[#647067] transition hover:bg-[#F6F8F6]"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleCreateEmergency}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-full bg-green-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? "Matching Hospitals..." : "Create Request"}
+              </button>
+            </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EmergencyCard({
+  emergency,
+}: {
+  emergency: Emergency;
+}) {
+  const priorityStyles = {
+    Critical: "bg-red-50 text-red-700 border-red-100",
+    High: "bg-orange-50 text-orange-700 border-orange-100",
+    Moderate: "bg-yellow-50 text-yellow-700 border-yellow-100",
+  };
+
+  const statusStyles = {
+    Dispatched: "bg-green-50 text-green-700",
+    Waiting: "bg-orange-50 text-orange-700",
+    Resolved: "bg-gray-100 text-gray-600",
+  };
+
+  return (
+    <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5 transition hover:shadow-md">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+              emergency.priority === "Critical"
+                ? "bg-red-50 text-red-600"
+                : emergency.priority === "High"
+                  ? "bg-orange-50 text-orange-600"
+                  : "bg-yellow-50 text-yellow-600"
+            }`}
+          >
+            <Siren size={20} />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-[#172019]">
+                {emergency.id}
+              </h3>
+
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                  priorityStyles[emergency.priority]
+                }`}
+              >
+                {emergency.priority}
+              </span>
+
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  statusStyles[emergency.status]
+                }`}
+              >
+                {emergency.status}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm font-medium text-[#172019]">
+              {emergency.type}
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[#647067]">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin size={13} />
+                {emergency.location}
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <Ambulance size={13} />
+                {emergency.ambulance}
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <Clock3 size={13} />
+                {emergency.time}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button className="rounded-full border border-[#DDE5DF] px-4 py-2 text-sm font-medium text-[#172019] transition hover:bg-[#F6F8F6]">
+          View Details
+        </button>
+      </div>
     </div>
   );
 }
