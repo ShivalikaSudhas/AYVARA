@@ -1,123 +1,185 @@
-import { Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Shield, KeyRound, UserCheck, AlertCircle } from "lucide-react";
+import { useAuth, UserRole } from "../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("coordinator_1");
+  const [password, setPassword] = useState("coord123");
+  const [role, setRole] = useState<UserRole>("coordinator");
+  const [hospitalId, setHospitalId] = useState("hosp_001");
+  const [error, setError] = useState<string | null>(null);
 
-  function handleLogin(event: React.FormEvent) {
-    event.preventDefault();
-    navigate("/");
-  }
+  const handleQuickSelect = (selectedRole: UserRole) => {
+    setRole(selectedRole);
+    if (selectedRole === "admin") {
+      setUsername("admin");
+      setPassword("admin123");
+      setHospitalId("");
+    } else if (selectedRole === "coordinator") {
+      setUsername("coordinator_1");
+      setPassword("coord123");
+      setHospitalId("hosp_001");
+    } else {
+      setUsername("dispatcher_1");
+      setPassword("dispatch123");
+      setHospitalId("");
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      setError("Please enter username and password.");
+      return;
+    }
+
+    // Mock JWT token generation for interface phase
+    const mockToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(
+      JSON.stringify({ sub: username, role, hospital_id: hospitalId })
+    )}.mock_signature`;
+
+    login(mockToken, {
+      username,
+      role,
+      hospital_id: hospitalId || undefined,
+    });
+
+    // Navigate to role-specific dashboard
+    if (role === "admin") navigate("/admin");
+    else if (role === "coordinator") navigate("/coordinator");
+    else if (role === "dispatcher") navigate("/dispatcher");
+    else navigate("/dashboard");
+  };
 
   return (
-    <div className="min-h-screen bg-[#F6F8F6]">
-      <div className="flex min-h-screen">
-        {/* Left side */}
-        <div className="hidden w-1/2 bg-green-800 p-12 lg:flex lg:flex-col">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              AYVARA
-            </h1>
-
-            <p className="mt-2 text-sm text-green-100">
-              Hospital Resource Coordination
-            </p>
+    <div className="flex min-h-screen items-center justify-center bg-[#F6F8F6] p-4">
+      <div className="w-full max-w-md rounded-3xl border border-[#DDE5DF] bg-white p-8 shadow-xl">
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-green-700">
+            <Shield size={28} />
           </div>
-
-          <div className="flex flex-1 items-center">
-            <div className="max-w-md">
-              <h2 className="text-4xl font-semibold leading-tight text-white">
-                Coordinating resources when they matter most.
-              </h2>
-
-              <p className="mt-5 text-sm leading-6 text-green-100">
-                Manage hospital resources, emergency requests, transfers, and
-                operational capacity from one place.
-              </p>
-            </div>
-          </div>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-[#172019]">
+            Smart Hospital Coordination
+          </h1>
+          <p className="mt-1 text-sm text-[#647067]">
+            Sign in to access your role-scoped portal
+          </p>
         </div>
 
-        {/* Login */}
-        <div className="flex w-full items-center justify-center px-6 py-12 lg:w-1/2">
-          <div className="w-full max-w-sm">
-            <div className="mb-8 lg:hidden">
-              <h1 className="text-2xl font-bold text-[#172019]">
-                AYVARA
-              </h1>
+        {/* Quick select demo buttons */}
+        <div className="mt-6 flex justify-center gap-2 rounded-xl bg-[#F6F8F6] p-1.5">
+          <button
+            type="button"
+            onClick={() => handleQuickSelect("admin")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
+              role === "admin"
+                ? "bg-white text-green-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Admin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickSelect("coordinator")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
+              role === "coordinator"
+                ? "bg-white text-green-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Coordinator
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickSelect("dispatcher")}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
+              role === "dispatcher"
+                ? "bg-white text-green-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Dispatcher
+          </button>
+        </div>
 
-              <p className="mt-1 text-sm text-[#647067]">
-                Hospital Resource Coordination
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-semibold text-[#172019]">
-                Sign in
-              </h2>
-
-              <p className="mt-2 text-sm text-[#647067]">
-                Please sign in to continue.
-              </p>
-            </div>
-
-            <form onSubmit={handleLogin} className="mt-8 space-y-5">
-              <div>
-                <label className="text-sm font-medium text-[#172019]">
-                  Email
-                </label>
-
-                <div className="relative mt-2">
-                  <Mail
-                    size={17}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
-                  />
-
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="coordinator@hospital.com"
-                    className="w-full rounded-md border border-[#DDE5DF] bg-white py-3 pl-10 pr-3 text-sm text-[#172019] outline-none transition placeholder:text-[#A0A9A3] focus:border-green-700 focus:ring-1 focus:ring-green-700"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-[#172019]">
-                  Password
-                </label>
-
-                <div className="relative mt-2">
-                  <Lock
-                    size={17}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
-                  />
-
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full rounded-md border border-[#DDE5DF] bg-white py-3 pl-10 pr-3 text-sm text-[#172019] outline-none transition placeholder:text-[#A0A9A3] focus:border-green-700 focus:ring-1 focus:ring-green-700"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full rounded-md bg-green-800 py-3 text-sm font-medium text-white transition hover:bg-green-900"
-              >
-                Sign In
-              </button>
-            </form>
+        {error && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs font-medium text-red-700">
+            <AlertCircle size={16} />
+            {error}
           </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#647067]">
+              Username
+            </label>
+            <div className="relative mt-1.5">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full rounded-xl border border-[#DDE5DF] bg-[#FAFCFA] px-4 py-3 pl-10 text-sm font-medium text-[#172019] focus:border-green-600 focus:outline-none"
+                required
+              />
+              <UserCheck size={18} className="absolute left-3 top-3.5 text-slate-400" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#647067]">
+              Password
+            </label>
+            <div className="relative mt-1.5">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-[#DDE5DF] bg-[#FAFCFA] px-4 py-3 pl-10 text-sm font-medium text-[#172019] focus:border-green-600 focus:outline-none"
+                required
+              />
+              <KeyRound size={18} className="absolute left-3 top-3.5 text-slate-400" />
+            </div>
+          </div>
+
+          {role === "coordinator" && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#647067]">
+                Hospital ID Scope
+              </label>
+              <input
+                type="text"
+                value={hospitalId}
+                onChange={(e) => setHospitalId(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-[#DDE5DF] bg-[#FAFCFA] px-4 py-3 text-sm font-medium text-[#172019] focus:border-green-600 focus:outline-none"
+                placeholder="hosp_001"
+              />
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800"
+          >
+            Sign In to {role.charAt(0).toUpperCase() + role.slice(1)} Portal
+          </button>
+        </form>
+
+        <div className="mt-6 border-t border-slate-100 pt-4 text-center">
+          <p className="text-xs text-slate-400">
+            Public Citizen?{" "}
+            <button
+              onClick={() => navigate("/sos")}
+              className="font-semibold text-green-700 underline hover:text-green-800"
+            >
+              Submit an Emergency SOS Report without Login
+            </button>
+          </p>
         </div>
       </div>
     </div>
