@@ -150,24 +150,28 @@ def seed_database():
                 )
                 db.add(bed)
 
-            # 1-2 Resource rows (VENTILATOR, OXYGEN)
-            res1 = Resource(
+                res1 = Resource(
                 id=f"res_{hosp_info['id']}_vent",
-                hospital_id=hospital.id,
-                resource_name="Ventilators",
+                department_id=dept_icu_id,
+                name="Ventilators",
                 resource_type="VENTILATOR",
                 total_quantity=10 + idx,
                 available_quantity=3 + (idx % 4),
+                status="available",
             )
+
             res2 = Resource(
                 id=f"res_{hosp_info['id']}_oxy",
-                hospital_id=hospital.id,
-                resource_name="Medical Oxygen Cylinders",
+                department_id=dept_icu_id,
+                name="Medical Oxygen Cylinders",
                 resource_type="OXYGEN",
                 total_quantity=50 + (idx * 5),
                 available_quantity=15 + (idx * 2),
+                status="available",
             )
+
             db.add_all([res1, res2])
+
 
             # 4-8 Blood Inventory rows across blood types with varied availability
             # Note: At least 1 hospital (KMC Mangaluru hosp_001) has CRITICAL O_negative stock = 0
@@ -185,7 +189,7 @@ def seed_database():
                     id=f"blood_{hosp_info['id']}_{b_type}",
                     hospital_id=hospital.id,
                     blood_type=b_type,
-                    units_available=units,
+                    available_units=units,
                 )
                 db.add(b_inv)
 
