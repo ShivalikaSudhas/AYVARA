@@ -9,7 +9,7 @@ class BloodInventory(Base):
         nullable=False,
     )
     blood_type: Mapped[str] = mapped_column(
-        String(10),
+        String(20),
         nullable=False,
     )
     available_units: Mapped[int] = mapped_column(
