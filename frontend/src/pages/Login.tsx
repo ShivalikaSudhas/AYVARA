@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, KeyRound, UserCheck, AlertCircle } from "lucide-react";
 import { useAuth, UserRole } from "../context/AuthContext";
+import { loginApi } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function Login() {
   const [role, setRole] = useState<UserRole>("coordinator");
   const [hospitalId, setHospitalId] = useState("hosp_001");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleQuickSelect = (selectedRole: UserRole) => {
     setRole(selectedRole);
@@ -30,29 +32,36 @@ export default function Login() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
       setError("Please enter username and password.");
       return;
     }
 
-    // Mock JWT token generation for interface phase
-    const mockToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(
-      JSON.stringify({ sub: username, role, hospital_id: hospitalId })
-    )}.mock_signature`;
+    setLoading(true);
+    setError(null);
 
-    login(mockToken, {
-      username,
-      role,
-      hospital_id: hospitalId || undefined,
-    });
+    try {
+      const res = await loginApi(username, password);
+      const userRole: UserRole = res.role || role;
+      const userHospId = res.hospital_id || hospitalId || undefined;
 
-    // Navigate to role-specific dashboard
-    if (role === "admin") navigate("/admin");
-    else if (role === "coordinator") navigate("/coordinator");
-    else if (role === "dispatcher") navigate("/dispatcher");
-    else navigate("/dashboard");
+      login(res.access_token, {
+        username: res.username || username,
+        role: userRole,
+        hospital_id: userHospId,
+      });
+
+      if (userRole === "admin") navigate("/admin");
+      else if (userRole === "coordinator") navigate("/coordinator");
+      else if (userRole === "dispatcher") navigate("/dispatcher");
+      else navigate("/dashboard");
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || "Authentication failed. Please check credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -164,9 +173,10 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800"
+            disabled={loading}
+            className="w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:opacity-50"
           >
-            Sign In to {role.charAt(0).toUpperCase() + role.slice(1)} Portal
+            {loading ? "Authenticating..." : `Sign In to ${role.charAt(0).toUpperCase() + role.slice(1)} Portal`}
           </button>
         </form>
 

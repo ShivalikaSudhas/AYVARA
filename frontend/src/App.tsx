@@ -5,20 +5,27 @@ import {
   Routes,
 } from "react-router-dom";
 
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 
-import Dashboard from "./pages/Dashboard";
 import Hospitals from "./pages/Hospitals";
 import Emergency from "./pages/Emergency";
 import Transfers from "./pages/Transfers";
 import Analytics from "./pages/Analytics";
-import HospitalAdmin from "./pages/HospitalAdmin";
 import Login from "./pages/Login";
 import PublicSOS from "./pages/PublicSOS";
 import AdminDashboard from "./pages/AdminDashboard";
 import CoordinatorDashboard from "./pages/CoordinatorDashboard";
 import DispatcherConsole from "./pages/DispatcherConsole";
+
+function DashboardRouter() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === "admin") return <AdminDashboard />;
+  if (user.role === "coordinator") return <CoordinatorDashboard />;
+  if (user.role === "dispatcher") return <DispatcherConsole />;
+  return <Navigate to="/login" replace />;
+}
 
 export default function App() {
   return (
@@ -29,7 +36,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/sos" element={<PublicSOS />} />
 
-          {/* Protected Routes (JWT Role Guarded) */}
+          {/* Role Landing Routes */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
             <Route path="/admin" element={<AdminDashboard />} />
           </Route>
@@ -42,14 +49,17 @@ export default function App() {
             <Route path="/dispatcher" element={<DispatcherConsole />} />
           </Route>
 
-          {/* General Command Center Routes */}
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/hospitals" element={<Hospitals />} />
-          <Route path="/emergency" element={<Emergency />} />
-          <Route path="/transfers" element={<Transfers />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/hospital-admin" element={<HospitalAdmin />} />
+          {/* Shared Authenticated Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["admin", "coordinator", "dispatcher"]} />}>
+            <Route path="/transfers" element={<Transfers />} />
+            <Route path="/hospitals" element={<Hospitals />} />
+            <Route path="/emergency" element={<Emergency />} />
+            <Route path="/analytics" element={<Analytics />} />
+          </Route>
+
+          {/* Root and Dashboard Fallback Routes */}
+          <Route path="/" element={<DashboardRouter />} />
+          <Route path="/dashboard" element={<DashboardRouter />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

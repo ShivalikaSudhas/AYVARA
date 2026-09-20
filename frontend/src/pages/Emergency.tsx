@@ -10,6 +10,7 @@ import {
   Loader2,
 } from "lucide-react";
 
+import Sidebar from "../components/common/Sidebar";
 import AmbulanceMap from "../components/map/AmbulanceMap";
 import {
   createEmergencyAndMatch,
@@ -151,6 +152,7 @@ export default function Emergency() {
 
   return (
     <div className="min-h-screen bg-[#f6f8f6] text-[#172019]">
+      <Sidebar />
       <main className="mx-auto max-w-7xl px-6 pb-12 pt-10">
         {/* Header */}
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
