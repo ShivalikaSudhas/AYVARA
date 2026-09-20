@@ -1,24 +1,9 @@
 import { useEffect, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import Sidebar from "../components/common/Sidebar";
-import { fetchAnalyticsTrends } from "../services/api";
-
-interface Trend {
-  time: string;
-  emergencies: number;
-  bedOccupancy: number;
-}
+import { fetchUtilizationMetrics, fetchResponseTimeMetrics } from "../services/api";
 
 export default function Analytics() {
-  const [trends, setTrends] = useState<Trend[]>([]);
+  const [utilization, setUtilization] = useState<any>(null);
+  const [responseTimes, setResponseTimes] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -28,8 +13,13 @@ export default function Analytics() {
         setLoading(true);
         setError(false);
 
-        const data = await fetchAnalyticsTrends();
-        setTrends(data?.trends ?? []);
+        const [utilizationData, responseData] = await Promise.all([
+          fetchUtilizationMetrics(),
+          fetchResponseTimeMetrics(),
+        ]);
+
+        setUtilization(utilizationData);
+        setResponseTimes(responseData);
       } catch (err) {
         console.error("Failed to load analytics:", err);
         setError(true);
@@ -42,178 +32,195 @@ export default function Analytics() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F6F8F6]">
-      <Sidebar />
+    <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
+      <section className="mb-10">
+        <p className="section-label mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+          Analytics
+        </p>
 
-      <main className="px-6 pb-10 pt-8">
-        <div className="mx-auto max-w-7xl">
-          {/* Header */}
-          <div>
-            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-              Analytics
-            </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-[#172019]">
+          Hospital Analytics
+        </h1>
 
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
-              Hospital Analytics
-            </h1>
+        <p className="mt-2 text-sm text-[#647067]">
+          Monitor hospital capacity and emergency response performance.
+        </p>
+      </section>
 
-            <p className="mt-2 text-sm text-[#647067]">
-              Monitor emergency activity and hospital capacity trends.
-            </p>
+      {loading ? (
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white">
+          <div className="flex items-center justify-center py-16 text-sm text-[#647067]">
+            Loading analytics...
           </div>
-
-          {error && (
-            <div className="mt-6 rounded-xl border border-[#DDE5DF] bg-white px-5 py-4 text-sm text-[#647067]">
-              Unable to load analytics data. Please check that the backend is
-              running.
-            </div>
-          )}
-
-          {/* Demand Trends */}
-          <section className="mt-8 rounded-2xl border border-[#DDE5DF] bg-white">
-            <div className="border-b border-[#E7ECE8] px-6 py-5">
-              <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                Demand Trends
-              </p>
-
-              <h2 className="mt-1 text-lg font-semibold text-[#172019]">
-                Emergency Activity
-              </h2>
-
-              <p className="mt-1 text-sm text-[#647067]">
-                Emergency cases recorded across the hospital network.
-              </p>
-            </div>
-
-            <div className="px-6 py-6">
-              {loading ? (
-                <div className="flex h-[320px] items-center justify-center text-sm text-[#89938C]">
-                  Loading analytics...
-                </div>
-              ) : trends.length === 0 ? (
-                <div className="flex h-[320px] items-center justify-center text-sm text-[#89938C]">
-                  No analytics data available.
-                </div>
-              ) : (
-                <div className="h-[320px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={trends}
-                      margin={{
-                        top: 10,
-                        right: 10,
-                        left: -20,
-                        bottom: 0,
-                      }}
-                    >
-                      <CartesianGrid
-                        stroke="#E7ECE8"
-                        strokeDasharray="3 3"
-                      />
-
-                      <XAxis
-                        dataKey="time"
-                        tick={{
-                          fill: "#89938C",
-                          fontSize: 12,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
-                      <YAxis
-                        allowDecimals={false}
-                        tick={{
-                          fill: "#89938C",
-                          fontSize: 12,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
-                      <Tooltip
-                        contentStyle={{
-                          border: "1px solid #DDE5DF",
-                          borderRadius: "10px",
-                          backgroundColor: "#FFFFFF",
-                          boxShadow: "none",
-                        }}
-                      />
-
-                      <Area
-                        type="monotone"
-                        dataKey="emergencies"
-                        name="Emergencies"
-                        stroke="#15803D"
-                        fill="#DCFCE7"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Hospital Utilization */}
-          <section className="mt-8">
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+          Unable to load analytics data. Please check the backend connection.
+        </div>
+      ) : (
+        <>
+          {/* Bed Capacity */}
+          <section className="mb-8">
             <div className="mb-4">
-              <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+              <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
                 Hospital Capacity
               </p>
+
+              <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+                Bed Utilization
+              </h2>
             </div>
 
-            <div className="rounded-2xl border border-[#DDE5DF] bg-white">
-              {loading ? (
-                <div className="px-6 py-8 text-sm text-[#89938C]">
-                  Loading capacity data...
-                </div>
-              ) : trends.length === 0 ? (
-                <div className="px-6 py-8 text-sm text-[#89938C]">
-                  No capacity data available.
-                </div>
-              ) : (
-                <div className="grid gap-0 md:grid-cols-3">
-                  <div className="border-b border-[#E7ECE8] px-6 py-5 md:border-b-0 md:border-r">
-                    <p className="text-xs text-[#89938C]">Current Occupancy</p>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">Total Capacity</p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {utilization?.total_capacity ?? "—"}
+                </p>
+                <p className="mt-1 text-xs text-[#8a948d]">
+                  Beds across the network
+                </p>
+              </div>
 
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
-                      {trends[trends.length - 1]?.bedOccupancy ?? "—"}%
-                    </p>
-                  </div>
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">Occupied Beds</p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {utilization?.occupied_beds ?? "—"}
+                </p>
+                <p className="mt-1 text-xs text-[#8a948d]">
+                  Currently occupied
+                </p>
+              </div>
 
-                  <div className="border-b border-[#E7ECE8] px-6 py-5 md:border-b-0 md:border-r">
-                    <p className="text-xs text-[#89938C]">Peak Occupancy</p>
-
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
-                      {Math.max(
-                        ...trends.map((item) => item.bedOccupancy)
-                      )}
-                      %
-                    </p>
-                  </div>
-
-                  <div className="px-6 py-5">
-                    <p className="text-xs text-[#89938C]">
-                      Average Occupancy
-                    </p>
-
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
-                      {Math.round(
-                        trends.reduce(
-                          (sum, item) => sum + item.bedOccupancy,
-                          0
-                        ) / trends.length
-                      )}
-                      %
-                    </p>
-                  </div>
-                </div>
-              )}
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">Utilization</p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {utilization?.overall_utilization_pct != null
+                    ? `${utilization.overall_utilization_pct.toFixed(1)}%`
+                    : "—"}
+                </p>
+                <p className="mt-1 text-xs text-[#8a948d]">
+                  Overall bed utilization
+                </p>
+              </div>
             </div>
           </section>
-        </div>
-      </main>
-    </div>
+
+          {/* Department Breakdown */}
+          <section className="mb-8">
+            <div className="mb-4">
+              <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+                Departments
+              </p>
+
+              <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+                Department Utilization
+              </h2>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-[#e4e9e5] bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left">
+                  <thead className="border-b border-[#e4e9e5] bg-[#fafcfb]">
+                    <tr>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                        Department
+                      </th>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                        Total Beds
+                      </th>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                        Occupied
+                      </th>
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                        Utilization
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {utilization?.department_breakdown?.map(
+                      (department: any) => (
+                        <tr
+                          key={department.department}
+                          className="border-b border-[#eef1ef] last:border-0"
+                        >
+                          <td className="px-5 py-4 font-medium text-[#172019]">
+                            {department.department}
+                          </td>
+
+                          <td className="px-5 py-4 text-sm text-[#647067]">
+                            {department.total}
+                          </td>
+
+                          <td className="px-5 py-4 text-sm text-[#647067]">
+                            {department.occupied}
+                          </td>
+
+                          <td className="px-5 py-4 text-sm font-medium text-[#172019]">
+                            {department.utilization_pct}%
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          {/* Response Performance */}
+          <section>
+            <div className="mb-4">
+              <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+                Emergency Response
+              </p>
+
+              <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+                Response Performance
+              </h2>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">
+                  Average Dispatch
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {responseTimes?.average_dispatch_seconds ?? "—"}s
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">
+                  Average ETA
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {responseTimes?.average_eta_minutes ?? "—"} min
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">
+                  Dispatches Today
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {responseTimes?.dispatches_today ?? "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+                <p className="text-sm text-[#647067]">
+                  Active Dispatches
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-[#172019]">
+                  {responseTimes?.active_dispatches ?? "—"}
+                </p>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+    </main>
   );
 }

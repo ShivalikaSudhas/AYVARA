@@ -1,256 +1,254 @@
+import { useEffect, useState } from "react";
 import {
-  BedDouble,
-  Building2,
-  Siren,
-  Ambulance,
-  ArrowUpRight,
-  Activity,
-} from "lucide-react";
+  fetchHospitals,
+  fetchUtilizationMetrics,
+  fetchResponseTimeMetrics,
+  fetchEmergencies,
+} from "../services/api";
 
-import Sidebar from "../components/common/Sidebar";
+interface Hospital {
+  id: string;
+  name: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
 
-const stats = [
-  {
-    title: "Available Beds",
-    value: "128",
-    description: "Across all hospitals",
-    icon: BedDouble,
-  },
-  {
-    title: "Hospitals Online",
-    value: "12",
-    description: "Connected facilities",
-    icon: Building2,
-  },
-  {
-    title: "Active Emergencies",
-    value: "7",
-    description: "Currently being handled",
-    icon: Siren,
-  },
-  {
-    title: "Ambulances",
-    value: "24",
-    description: "Available for dispatch",
-    icon: Ambulance,
-  },
-];
+interface UtilizationMetrics {
+  total_capacity: number;
+  occupied_beds: number;
+  overall_utilization_pct: number;
+}
 
-const hospitals = [
-  {
-    name: "City General Hospital",
-    location: "Central District",
-    beds: 32,
-    occupancy: 72,
-    status: "Available",
-  },
-  {
-    name: "St. Mary's Medical Center",
-    location: "North District",
-    beds: 18,
-    occupancy: 81,
-    status: "Available",
-  },
-  {
-    name: "Central Emergency Hospital",
-    location: "East District",
-    beds: 7,
-    occupancy: 94,
-    status: "Limited",
-  },
-  {
-    name: "Green Valley Hospital",
-    location: "West District",
-    beds: 25,
-    occupancy: 64,
-    status: "Available",
-  },
-];
+interface ResponseTimeMetrics {
+  active_dispatches: number;
+}
 
-const emergencies = [
-  {
-    id: "ER-1042",
-    type: "Road Accident",
-    location: "MG Road",
-    priority: "Critical",
-    time: "2 min ago",
-  },
-  {
-    id: "ER-1041",
-    type: "Cardiac Emergency",
-    location: "Indiranagar",
-    priority: "High",
-    time: "7 min ago",
-  },
-  {
-    id: "ER-1039",
-    type: "Trauma",
-    location: "Airport Road",
-    priority: "Moderate",
-    time: "14 min ago",
-  },
-];
+interface Emergency {
+  id: string;
+  status: string;
+}
+
+function LoadingBlock({ text }: { text: string }) {
+  return (
+    <div className="flex items-center justify-center py-10 text-sm text-[#647067]">
+      {text}
+    </div>
+  );
+}
+
+function ErrorBlock({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+      {text}
+    </div>
+  );
+}
 
 export default function Dashboard() {
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [utilization, setUtilization] =
+    useState<UtilizationMetrics | null>(null);
+  const [responseTimes, setResponseTimes] =
+    useState<ResponseTimeMetrics | null>(null);
+  const [emergencies, setEmergencies] = useState<Emergency[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        setLoading(true);
+        setError(false);
+
+        const [hospitalData, utilizationData, responseData, emergencyData] =
+          await Promise.all([
+            fetchHospitals(),
+            fetchUtilizationMetrics(),
+            fetchResponseTimeMetrics(),
+            fetchEmergencies(),
+          ]);
+
+        setHospitals(Array.isArray(hospitalData) ? hospitalData : []);
+        setUtilization(utilizationData);
+        setResponseTimes(responseData);
+        setEmergencies(Array.isArray(emergencyData) ? emergencyData : []);
+      } catch (err) {
+        console.error("Failed to load dashboard:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, []);
+
+  const activeEmergencies = emergencies.filter((emergency) =>
+    ["pending", "matched", "dispatched"].includes(
+      emergency.status?.toLowerCase()
+    )
+  ).length;
+
+  const availableBeds = utilization
+    ? utilization.total_capacity - utilization.occupied_beds
+    : null;
+
+  const stats = [
+    {
+      title: "Available Beds",
+      value: availableBeds,
+      description: "Across the hospital network",
+    },
+    {
+      title: "Hospitals Online",
+      value: hospitals.length,
+      description: "Connected facilities",
+    },
+    {
+      title: "Active Emergencies",
+      value: activeEmergencies,
+      description: "Currently being handled",
+    },
+    {
+      title: "Active Dispatches",
+      value: responseTimes?.active_dispatches ?? null,
+      description: "Ambulances currently dispatched",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F6F8F6]">
-      <Sidebar />
+    <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
+      {/* Header */}
+      <section className="mb-10">
+        <p className="section-label mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+          Command Center
+        </p>
 
-      <main className="px-6 pb-10 pt-8">
-        <div className="mx-auto max-w-7xl">
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-semibold tracking-wide text-green-700">
-                COMMAND CENTER
-              </p>
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-[#172019]">
+              Resource Dashboard
+            </h1>
 
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#172019]">
-                Resource Dashboard
-              </h1>
-
-              <p className="mt-2 text-sm text-[#647067]">
-                Monitor hospital capacity, emergencies and ambulance
-                availability.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-
-              <span className="text-sm font-medium text-green-700">
-                System Operational
-              </span>
-            </div>
+            <p className="mt-2 text-sm text-[#647067]">
+              Monitor hospital capacity and emergency resources.
+            </p>
           </div>
 
-          {/* Stats */}
-          <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
+          <div className="flex w-fit items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-800">
+            <span className="h-2 w-2 rounded-full bg-green-600" />
+            System Operational
+          </div>
+        </div>
+      </section>
 
-              return (
-                <div
-                  key={stat.title}
-                  className="rounded-2xl border border-[#DDE5DF] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-[#647067]">
-                        {stat.title}
-                      </p>
+      {/* Error */}
+      {error && (
+        <div className="mb-10">
+          <ErrorBlock text="Unable to load dashboard data. Please check the backend connection." />
+        </div>
+      )}
 
-                      <p className="mt-3 text-3xl font-bold text-[#172019]">
-                        {stat.value}
-                      </p>
+      {/* Stats */}
+      {loading ? (
+        <div className="mb-10 rounded-2xl border border-[#e4e9e5] bg-white">
+          <LoadingBlock text="Loading dashboard data..." />
+        </div>
+      ) : (
+        <section className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.title}
+              className="rounded-2xl border border-[#e4e9e5] bg-white p-5"
+            >
+              <p className="text-sm font-medium text-[#647067]">
+                {stat.title}
+              </p>
 
-                      <p className="mt-1 text-xs text-[#8A958E]">
-                        {stat.description}
-                      </p>
-                    </div>
+              <p className="mt-3 text-3xl font-semibold tracking-tight text-[#172019]">
+                {stat.value ?? "—"}
+              </p>
 
-                    <div className="rounded-xl bg-green-50 p-3 text-green-700">
-                      <Icon size={22} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-
-          {/* Hospital Resource Status */}
-          <section className="mt-6 rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-[#172019]">
-                  Hospital Resource Status
-                </h2>
-
-                <p className="mt-1 text-sm text-[#647067]">
-                  Current capacity across connected facilities.
-                </p>
-              </div>
-
-              <button className="flex items-center gap-1 text-sm font-medium text-green-700 transition hover:text-green-800">
-                View all
-                <ArrowUpRight size={16} />
-              </button>
+              <p className="mt-1 text-xs text-[#8a948d]">
+                {stat.description}
+              </p>
             </div>
+          ))}
+        </section>
+      )}
 
-            <div className="mt-6 overflow-hidden rounded-xl border border-[#E7ECE8]">
-              <table className="w-full text-left">
-                <thead className="bg-[#F6F8F6]">
+      {/* Hospital Network */}
+      <section className="mb-10">
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+            Hospital Network
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            Connected Hospitals
+          </h2>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-[#e4e9e5] bg-white">
+          {loading ? (
+            <LoadingBlock text="Loading hospitals..." />
+          ) : hospitals.length === 0 ? (
+            <div className="py-10 text-center text-sm text-[#647067]">
+              No hospital data available.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[650px] text-left">
+                <thead className="border-b border-[#e4e9e5] bg-[#fafcfb]">
                   <tr>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
                       Hospital
                     </th>
 
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#647067]">
-                      Available Beds
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                      Address
                     </th>
 
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#647067]">
-                      Occupancy
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                      Location
                     </th>
 
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#647067]">
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-[#647067]">
                       Status
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-[#E7ECE8]">
+                <tbody>
                   {hospitals.map((hospital) => (
                     <tr
-                      key={hospital.name}
-                      className="transition hover:bg-[#F8FAF8]"
+                      key={hospital.id}
+                      className="border-b border-[#eef1ef] last:border-0"
                     >
                       <td className="px-5 py-4">
                         <p className="font-medium text-[#172019]">
                           {hospital.name}
                         </p>
-
-                        <p className="mt-1 text-xs text-[#8A958E]">
-                          {hospital.location}
-                        </p>
                       </td>
 
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                        {hospital.beds}
+                      <td className="px-5 py-4 text-sm text-[#647067]">
+                        {hospital.address || "Not provided"}
                       </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className={`h-full rounded-full ${
-                                hospital.occupancy >= 90
-                                  ? "bg-red-500"
-                                  : hospital.occupancy >= 80
-                                    ? "bg-orange-500"
-                                    : "bg-green-500"
-                              }`}
-                              style={{
-                                width: `${hospital.occupancy}%`,
-                              }}
-                            />
-                          </div>
-
-                          <span className="text-xs text-[#647067]">
-                            {hospital.occupancy}%
-                          </span>
-                        </div>
+                      <td className="px-5 py-4 text-sm text-[#647067]">
+                        {hospital.latitude != null &&
+                        hospital.longitude != null
+                          ? `${hospital.latitude.toFixed(
+                              4
+                            )}, ${hospital.longitude.toFixed(4)}`
+                          : "Not provided"}
                       </td>
 
                       <td className="px-5 py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${
-                            hospital.status === "Available"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-orange-50 text-orange-700"
-                          }`}
-                        >
-                          {hospital.status}
+                        <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                          Connected
                         </span>
                       </td>
                     </tr>
@@ -258,145 +256,109 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </section>
-
-          {/* Bottom Sections */}
-          <section className="mt-6 grid gap-6 lg:grid-cols-2">
-            {/* Emergencies */}
-            <div className="rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-red-50 p-3 text-red-600">
-                  <Siren size={21} />
-                </div>
-
-                <div>
-                  <h2 className="font-semibold text-[#172019]">
-                    Active Emergencies
-                  </h2>
-
-                  <p className="text-sm text-[#647067]">
-                    Requests requiring coordination.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {emergencies.map((emergency) => (
-                  <div
-                    key={emergency.id}
-                    className="flex items-center justify-between rounded-xl border border-[#E7ECE8] p-4 transition hover:bg-[#FAFBFA]"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-[#172019]">
-                          {emergency.id}
-                        </p>
-
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            emergency.priority === "Critical"
-                              ? "bg-red-50 text-red-700"
-                              : emergency.priority === "High"
-                                ? "bg-orange-50 text-orange-700"
-                                : "bg-yellow-50 text-yellow-700"
-                          }`}
-                        >
-                          {emergency.priority}
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-sm text-[#647067]">
-                        {emergency.type} · {emergency.location}
-                      </p>
-                    </div>
-
-                    <span className="text-xs text-[#8A958E]">
-                      {emergency.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* System Activity */}
-            <div className="rounded-2xl border border-[#DDE5DF] bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-50 p-3 text-green-700">
-                  <Activity size={21} />
-                </div>
-
-                <div>
-                  <h2 className="font-semibold text-[#172019]">
-                    System Activity
-                  </h2>
-
-                  <p className="text-sm text-[#647067]">
-                    Latest coordination events.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-5">
-                <div className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-green-500" />
-
-                  <div>
-                    <p className="text-sm text-slate-700">
-                      Bed reservation confirmed
-                    </p>
-
-                    <p className="text-xs text-[#8A958E]">
-                      Central Emergency Hospital · 3 min ago
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-green-600" />
-
-                  <div>
-                    <p className="text-sm text-slate-700">
-                      Ambulance dispatched
-                    </p>
-
-                    <p className="text-xs text-[#8A958E]">
-                      Unit A-17 · 6 min ago
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-orange-500" />
-
-                  <div>
-                    <p className="text-sm text-slate-700">
-                      Hospital capacity updated
-                    </p>
-
-                    <p className="text-xs text-[#8A958E]">
-                      City General Hospital · 9 min ago
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-red-500" />
-
-                  <div>
-                    <p className="text-sm text-slate-700">
-                      Emergency request created
-                    </p>
-
-                    <p className="text-xs text-[#8A958E]">
-                      ER-1039 · 14 min ago
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          )}
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Network Utilization */}
+      <section className="mb-10">
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+            Capacity
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            Network Utilization
+          </h2>
+        </div>
+
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-6">
+          {loading ? (
+            <LoadingBlock text="Loading utilization..." />
+          ) : utilization ? (
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div>
+                <p className="text-sm text-[#647067]">Total Capacity</p>
+                <p className="mt-2 text-2xl font-semibold text-[#172019]">
+                  {utilization.total_capacity}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-[#647067]">Occupied Beds</p>
+                <p className="mt-2 text-2xl font-semibold text-[#172019]">
+                  {utilization.occupied_beds}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-[#647067]">Utilization</p>
+                <p className="mt-2 text-2xl font-semibold text-[#172019]">
+                  {utilization.overall_utilization_pct}%
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[#647067]">
+              Utilization data unavailable.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Active Emergencies */}
+      <section className="mb-10">
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+            Emergency Response
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            Active Emergencies
+          </h2>
+        </div>
+
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-3xl font-semibold text-[#172019]">
+                {loading ? "—" : activeEmergencies}
+              </p>
+
+              <p className="mt-1 text-sm text-[#647067]">
+                Emergency requests currently being handled.
+              </p>
+            </div>
+
+            <a
+              href="/emergency"
+              className="rounded-full bg-green-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-900"
+            >
+              View Emergencies
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* System Activity */}
+      <section>
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+            System
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            System Activity
+          </h2>
+        </div>
+
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-6">
+          <p className="text-sm text-[#647067]">
+            Live activity is being provided by the connected hospital
+            services.
+          </p>
+        </div>
+      </section>
+    </main>
   );
 }

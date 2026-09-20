@@ -1,102 +1,121 @@
 import { useState } from "react";
+import { Loader2, MapPin, Siren, X } from "lucide-react";
 import {
-  AlertTriangle,
-  Ambulance,
-  Clock3,
-  MapPin,
-  Plus,
-  Siren,
-  X,
-  Loader2,
-} from "lucide-react";
-
-import AmbulanceMap from "../components/map/AmbulanceMap";
-import {
-  createEmergencyAndMatch,
+  createEmergency,
   type EmergencyMatchRequest,
   type HospitalMatchResult,
 } from "../services/api";
+import AmbulanceMap from "../components/map/AmbulanceMap";
 
-interface Emergency {
-  id: string;
-  type: string;
-  location: string;
-  priority: "Critical" | "High" | "Moderate";
-  status: "Dispatched" | "Waiting" | "Resolved";
-  ambulance: string;
-  time: string;
+type Severity = "critical" | "high" | "moderate" | "low";
+
+interface EmergencyRequest {
+  patientCondition: string;
+  latitude: number;
+  longitude: number;
+  severity: Severity;
+  specialty: string;
+  bloodType?: string;
 }
 
-const emergencies: Emergency[] = [
-  {
-    id: "ER-1042",
-    type: "Road Accident",
-    location: "MG Road",
-    priority: "Critical",
-    status: "Dispatched",
-    ambulance: "AMB-17",
-    time: "2 min ago",
-  },
-  {
-    id: "ER-1041",
-    type: "Cardiac Emergency",
-    location: "Indiranagar",
-    priority: "High",
-    status: "Waiting",
-    ambulance: "AMB-12",
-    time: "8 min ago",
-  },
-  {
-    id: "ER-1039",
-    type: "Severe Trauma",
-    location: "Koramangala",
-    priority: "High",
-    status: "Dispatched",
-    ambulance: "AMB-08",
-    time: "14 min ago",
-  },
-  {
-    id: "ER-1037",
-    type: "Respiratory Emergency",
-    location: "Whitefield",
-    priority: "Moderate",
-    status: "Resolved",
-    ambulance: "AMB-21",
-    time: "31 min ago",
-  },
-];
+function severityStyle(severity: Severity) {
+  switch (severity) {
+    case "critical":
+      return "bg-red-50 text-red-700";
+    case "high":
+      return "bg-orange-50 text-orange-700";
+    case "moderate":
+      return "bg-amber-50 text-amber-700";
+    default:
+      return "bg-green-50 text-green-700";
+  }
+}
+
+function severityLabel(severity: Severity) {
+  return severity.charAt(0).toUpperCase() + severity.slice(1);
+}
+
+function EmergencyCard({
+  request,
+  index,
+}: {
+  request: EmergencyRequest;
+  index: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <Siren size={18} />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-[#172019]">
+              Emergency Request #{index + 1}
+            </p>
+
+            <p className="mt-1 text-xs text-[#8a948d]">
+              {request.patientCondition}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-medium ${severityStyle(
+            request.severity
+          )}`}
+        >
+          {severityLabel(request.severity)}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-[#8a948d]">
+            Location
+          </p>
+
+          <p className="mt-1 text-sm text-[#172019]">
+            {request.latitude.toFixed(5)}, {request.longitude.toFixed(5)}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs uppercase tracking-wide text-[#8a948d]">
+            Specialty
+          </p>
+
+          <p className="mt-1 text-sm text-[#172019]">
+            {request.specialty}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Emergency() {
   const [showNewEmergency, setShowNewEmergency] = useState(false);
-
   const [patientCondition, setPatientCondition] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [priority, setPriority] =
-    useState<EmergencyMatchRequest["priority"]>("critical");
-
+  const [severity, setSeverity] = useState<Severity>("critical");
   const [specialty, setSpecialty] = useState("");
   const [bloodType, setBloodType] = useState("");
 
   const [matches, setMatches] = useState<HospitalMatchResult[]>([]);
+  const [requests, setRequests] = useState<EmergencyRequest[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const criticalCount = emergencies.filter(
-    (emergency) => emergency.priority === "Critical"
-  ).length;
-
-  const highCount = emergencies.filter(
-    (emergency) => emergency.priority === "High"
-  ).length;
-
-  const activeCount = emergencies.filter(
-    (emergency) => emergency.status !== "Resolved"
-  ).length;
-
-  function handleLocationSelect(lat: number, lng: number) {
-    setLatitude(Number(lat.toFixed(6)));
-    setLongitude(Number(lng.toFixed(6)));
+  function handleLocationSelect(
+    selectedLatitude: number,
+    selectedLongitude: number
+  ) {
+    setLatitude(Number(selectedLatitude.toFixed(6)));
+    setLongitude(Number(selectedLongitude.toFixed(6)));
   }
 
   async function handleCreateEmergency() {
@@ -117,49 +136,66 @@ export default function Emergency() {
       return;
     }
 
-    setLoading(true);
+    const payload: EmergencyMatchRequest = {
+      patient_condition: patientCondition.trim(),
+      severity,
+      latitude,
+      longitude,
+      required_specialties: [specialty],
+      ...(bloodType
+        ? {
+            blood_type_needed: bloodType,
+          }
+        : {}),
+    };
 
     try {
-      const payload: EmergencyMatchRequest = {
-        patient_condition: patientCondition,
-        latitude,
-        longitude,
-        required_specialties: [specialty],
-        blood_type_needed: bloodType || undefined,
-        priority,
-      };
+      setLoading(true);
 
-      const hospitalMatches = await createEmergencyAndMatch(payload);
+      const result = await createEmergency(payload);
 
-      setMatches(hospitalMatches);
+      setMatches(result.matches);
+
+      setRequests((previous) => [
+        ...previous,
+        {
+          patientCondition: patientCondition.trim(),
+          latitude,
+          longitude,
+          severity,
+          specialty,
+          bloodType: bloodType || undefined,
+        },
+      ]);
+
       setShowNewEmergency(false);
-
-      // Reset form
       setPatientCondition("");
       setLatitude(null);
       setLongitude(null);
-      setPriority("critical");
+      setSeverity("critical");
       setSpecialty("");
       setBloodType("");
     } catch (err) {
-      console.error(err);
-      setError("Unable to process the emergency request.");
+      console.error("Failed to create emergency:", err);
+
+      setError(
+        "Unable to create the emergency request. Please check the backend connection."
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8f6] text-[#172019]">
-      <main className="mx-auto max-w-7xl px-6 pb-12 pt-10">
-        {/* Header */}
+    <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
+      <section className="mb-10">
+        <p className="section-label mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
+          Emergency Response
+        </p>
+
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-              Emergency Response
-            </p>
-
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#172019]">
+            <h1 className="text-3xl font-semibold tracking-tight text-[#172019]">
               Emergency Requests
             </h1>
 
@@ -169,294 +205,278 @@ export default function Emergency() {
           </div>
 
           <button
+            type="button"
             onClick={() => {
               setError("");
               setShowNewEmergency(true);
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-green-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
+            className="w-fit rounded-full bg-green-800 px-5 py-3 text-sm font-medium text-white transition hover:bg-green-900"
           >
-            <Plus size={17} />
             New Emergency
           </button>
         </div>
+      </section>
 
-        {/* Stats */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-[#E8D8D8] bg-white p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#647067]">Critical</p>
-
-                <p className="mt-2 text-3xl font-semibold text-red-700">
-                  {criticalCount}
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                <Siren size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#E8DFD4] bg-white p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#647067]">High Priority</p>
-
-                <p className="mt-2 text-3xl font-semibold text-orange-600">
-                  {highCount}
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                <AlertTriangle size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#647067]">Active Requests</p>
-
-                <p className="mt-2 text-3xl font-semibold text-green-700">
-                  {activeCount}
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-700">
-                <Ambulance size={20} />
-              </div>
-            </div>
-          </div>
+      <section className="mb-10 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+          <p className="text-sm text-[#647067]">Critical</p>
+          <p className="mt-3 text-3xl font-semibold text-[#172019]">
+            {requests.filter((request) => request.severity === "critical").length}
+          </p>
         </div>
 
-        {/* Emergency Queue */}
-        <section className="mt-8">
-          <div className="mb-4">
-            <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-              Active Queue
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+          <p className="text-sm text-[#647067]">High Severity</p>
+          <p className="mt-3 text-3xl font-semibold text-[#172019]">
+            {requests.filter((request) => request.severity === "high").length}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-[#e4e9e5] bg-white p-5">
+          <p className="text-sm text-[#647067]">Active Requests</p>
+          <p className="mt-3 text-3xl font-semibold text-[#172019]">
+            {requests.length}
+          </p>
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
+            Live Requests
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            Emergency Queue
+          </h2>
+        </div>
+
+        {requests.length === 0 ? (
+          <div className="rounded-2xl border border-[#e4e9e5] bg-white py-12 text-center">
+            <Siren size={24} className="mx-auto text-[#8a948d]" />
+
+            <p className="mt-3 text-sm font-medium text-[#172019]">
+              No emergency requests created in this session.
             </p>
 
-            <h2 className="mt-1 text-xl font-semibold text-[#172019]">
-              Emergency Requests
-            </h2>
+            <p className="mt-1 text-xs text-[#8a948d]">
+              Create a new emergency request to begin hospital matching.
+            </p>
           </div>
-
-          <div className="space-y-3">
-            {emergencies.map((emergency) => (
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {requests.map((request, index) => (
               <EmergencyCard
-                key={emergency.id}
-                emergency={emergency}
+                key={`${request.latitude}-${request.longitude}-${index}`}
+                request={request}
+                index={index}
               />
             ))}
           </div>
-        </section>
+        )}
+      </section>
 
-        {/* Hospital Matches */}
-        {matches.length > 0 && (
-          <section className="mt-8">
-            <div className="mb-4">
-              <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                Hospital Matching
-              </p>
+      {matches.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-4">
+            <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+              Hospital Matching
+            </p>
 
-              <h2 className="mt-1 text-xl font-semibold text-[#172019]">
-                Recommended Hospitals
-              </h2>
-            </div>
+            <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+              Recommended Hospitals
+            </h2>
+          </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {matches.map((hospital) => (
-                <div
-                  key={hospital.hospital_id}
-                  className="rounded-2xl border border-[#DDE5DF] bg-white p-5"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="font-semibold text-[#172019]">
-                        {hospital.hospital_name}
-                      </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {matches.map((hospital) => (
+              <div
+                key={hospital.hospital_id}
+                className="rounded-2xl border border-[#e4e9e5] bg-white p-5"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-[#172019]">
+                      {hospital.hospital_name}
+                    </h3>
 
-                      <p className="mt-1 text-xs text-[#647067]">
-                        {hospital.distance_km} km ·{" "}
-                        {hospital.estimated_eta_minutes} min ETA
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                      {hospital.match_score}% Match
-                    </span>
+                    <p className="mt-1 text-xs text-[#8a948d]">
+                      {hospital.distance_km} km away
+                    </p>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl bg-[#F6F8F6] p-3">
-                      <p className="text-xs text-[#89938C]">
-                        Available Beds
-                      </p>
+                  <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                    {hospital.match_score}
+                  </span>
+                </div>
 
-                      <p className="mt-1 font-semibold text-[#172019]">
-                        {hospital.total_available_beds}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-[#F6F8F6] p-3">
-                      <p className="text-xs text-[#89938C]">
-                        ICU Beds
-                      </p>
-
-                      <p className="mt-1 font-semibold text-[#172019]">
-                        {hospital.available_icu_beds}
-                      </p>
-                    </div>
+                <div className="mt-5 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-[#8a948d]">ICU Beds</p>
+                    <p className="mt-1 text-lg font-semibold text-[#172019]">
+                      {hospital.available_icu_beds}
+                    </p>
                   </div>
 
-                  <div className="mt-3 text-xs text-[#647067]">
-                    Specialty:{" "}
-                    {hospital.matched_specialties.join(", ")}
+                  <div>
+                    <p className="text-xs text-[#8a948d]">Available Beds</p>
+                    <p className="mt-1 text-lg font-semibold text-[#172019]">
+                      {hospital.total_available_beds}
+                    </p>
                   </div>
 
-                  <div className="mt-1 text-xs text-[#647067]">
-                    Blood stock:{" "}
-                    <span
-                      className={
-                        hospital.has_blood_stock
-                          ? "font-medium text-green-700"
-                          : "font-medium text-red-600"
-                      }
-                    >
-                      {hospital.has_blood_stock
-                        ? "Available"
-                        : "Unavailable"}
-                    </span>
+                  <div>
+                    <p className="text-xs text-[#8a948d]">Estimated ETA</p>
+                    <p className="mt-1 text-lg font-semibold text-[#172019]">
+                      {hospital.estimated_eta_minutes} min
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-[#8a948d]">Blood Stock</p>
+                    <p className="mt-1 text-sm font-semibold text-[#172019]">
+                      {hospital.has_blood_stock ? "Available" : "Unavailable"}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-        {/* Map */}
-        <section className="mt-8">
+      <section>
+        <div className="mb-4">
+          <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-green-800">
+            Location
+          </p>
+
+          <h2 className="mt-1 text-xl font-semibold text-[#172019]">
+            Emergency Map
+          </h2>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-[#e4e9e5] bg-white">
           <AmbulanceMap
             latitude={latitude ?? 12.9716}
             longitude={longitude ?? 77.5946}
             hospitals={matches}
             onLocationSelect={handleLocationSelect}
           />
-        </section>
-      </main>
+        </div>
 
-      {/* New Emergency Modal */}
+        {latitude !== null && longitude !== null && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-[#647067]">
+            <MapPin size={14} />
+            Selected location: {latitude}, {longitude}
+          </div>
+        )}
+      </section>
+
       {showNewEmergency && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/30 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-start justify-between">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 px-6 py-6">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#e4e9e5] bg-white p-6 shadow-xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <p className="section-label text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+                <p className="section-label text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
                   Emergency Response
                 </p>
 
                 <h2 className="mt-1 text-xl font-semibold text-[#172019]">
-                  Patient Condition / Incident
+                  New Emergency
                 </h2>
+
+                <p className="mt-1 text-sm text-[#647067]">
+                  Enter the incident details to find matching hospitals.
+                </p>
               </div>
 
               <button
-                onClick={() => setShowNewEmergency(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-[#647067] transition hover:bg-gray-100 hover:text-[#172019]"
+                type="button"
+                onClick={() => {
+                  if (!loading) {
+                    setShowNewEmergency(false);
+                    setError("");
+                  }
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[#647067] transition hover:bg-[#f4f6f4] hover:text-[#172019]"
+                aria-label="Close"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="mt-6 space-y-5">
-              {/* Patient Condition */}
+            <div className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                <label
+                  htmlFor="patientCondition"
+                  className="mb-2 block text-sm font-medium text-[#172019]"
+                >
                   Patient Condition / Incident
                 </label>
 
                 <textarea
+                  id="patientCondition"
                   value={patientCondition}
-                  onChange={(e) =>
-                    setPatientCondition(e.target.value)
+                  onChange={(event) =>
+                    setPatientCondition(event.target.value)
                   }
-                  rows={3}
-                  placeholder="e.g. Severe road accident with suspected spinal injury"
-                  className="w-full resize-none rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none transition focus:border-green-700"
+                  rows={4}
+                  placeholder="Describe the patient condition or incident..."
+                  className="w-full resize-none rounded-xl border border-[#dfe5e1] bg-white px-4 py-3 text-sm text-[#172019] outline-none placeholder:text-[#9aa39d] focus:border-green-700"
                 />
               </div>
 
-              {/* Coordinates */}
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-[#172019]">
-                    Incident Location
-                  </label>
+                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                  Incident Location
+                </label>
 
-                  <span className="text-xs text-[#89938C]">
-                    Click map to select
-                  </span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    value={latitude !== null ? latitude.toString() : ""}
+                    readOnly
+                    placeholder="Latitude"
+                    className="rounded-xl border border-[#dfe5e1] bg-[#fafcfb] px-4 py-3 text-sm text-[#172019] outline-none"
+                  />
+
+                  <input
+                    value={longitude !== null ? longitude.toString() : ""}
+                    readOnly
+                    placeholder="Longitude"
+                    className="rounded-xl border border-[#dfe5e1] bg-[#fafcfb] px-4 py-3 text-sm text-[#172019] outline-none"
+                  />
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <MapPin
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
-                    />
+                <p className="mt-2 text-xs text-[#8a948d]">
+                  Select the incident location directly on the map below.
+                </p>
 
-                    <input
-                      type="text"
-                      value={
-                        latitude !== null
-                          ? latitude
-                          : ""
-                      }
-                      readOnly
-                      placeholder="Latitude"
-                      className="w-full rounded-xl border border-[#DDE5DF] bg-[#F8FAF8] py-3 pl-9 pr-3 text-sm text-[#647067] outline-none"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <MapPin
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89938C]"
-                    />
-
-                    <input
-                      type="text"
-                      value={
-                        longitude !== null
-                          ? longitude
-                          : ""
-                      }
-                      readOnly
-                      placeholder="Longitude"
-                      className="w-full rounded-xl border border-[#DDE5DF] bg-[#F8FAF8] py-3 pl-9 pr-3 text-sm text-[#647067] outline-none"
-                    />
-                  </div>
+                <div className="mt-3 overflow-hidden rounded-xl border border-[#e4e9e5]">
+                  <AmbulanceMap
+                    latitude={latitude ?? 12.9716}
+                    longitude={longitude ?? 77.5946}
+                    hospitals={[]}
+                    onLocationSelect={handleLocationSelect}
+                  />
                 </div>
               </div>
 
-              {/* Priority */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#172019]">
-                  Priority
+                <label
+                  htmlFor="severity"
+                  className="mb-2 block text-sm font-medium text-[#172019]"
+                >
+                  Severity
                 </label>
 
                 <select
-                  value={priority}
-                  onChange={(e) =>
-                    setPriority(
-                      e.target
-                        .value as EmergencyMatchRequest["priority"]
-                    )
+                  id="severity"
+                  value={severity}
+                  onChange={(event) =>
+                    setSeverity(event.target.value as Severity)
                   }
-                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                  className="w-full rounded-xl border border-[#dfe5e1] bg-white px-4 py-3 text-sm text-[#172019] outline-none focus:border-green-700"
                 >
                   <option value="critical">Critical</option>
                   <option value="high">High</option>
@@ -465,62 +485,48 @@ export default function Emergency() {
                 </select>
               </div>
 
-              {/* Required Specialty */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#172019]">
-                  Required Specialties
+                <label
+                  htmlFor="specialty"
+                  className="mb-2 block text-sm font-medium text-[#172019]"
+                >
+                  Required Specialty
                 </label>
 
                 <select
+                  id="specialty"
                   value={specialty}
-                  onChange={(e) =>
-                    setSpecialty(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                  onChange={(event) => setSpecialty(event.target.value)}
+                  className="w-full rounded-xl border border-[#dfe5e1] bg-white px-4 py-3 text-sm text-[#172019] outline-none focus:border-green-700"
                 >
-                  <option value="">
-                    Select specialty
-                  </option>
-                  <option value="Cardiology">
-                    Cardiology
-                  </option>
-                  <option value="Neurology">
-                    Neurology
-                  </option>
-                  <option value="Trauma">
-                    Trauma
-                  </option>
-                  <option value="Orthopedics">
-                    Orthopedics
-                  </option>
-                  <option value="Pulmonology">
-                    Pulmonology
-                  </option>
-                  <option value="General Surgery">
-                    General Surgery
-                  </option>
+                  <option value="">Select specialty</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="Neurology">Neurology</option>
+                  <option value="Trauma">Trauma</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="Pulmonology">Pulmonology</option>
+                  <option value="General Surgery">General Surgery</option>
                   <option value="Emergency Medicine">
                     Emergency Medicine
                   </option>
                 </select>
               </div>
 
-              {/* Blood Type */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#172019]">
+                <label
+                  htmlFor="bloodType"
+                  className="mb-2 block text-sm font-medium text-[#172019]"
+                >
                   Blood Type Needed
                 </label>
 
                 <select
+                  id="bloodType"
                   value={bloodType}
-                  onChange={(e) =>
-                    setBloodType(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-[#DDE5DF] bg-white px-4 py-3 text-sm outline-none focus:border-green-700"
+                  onChange={(event) => setBloodType(event.target.value)}
+                  className="w-full rounded-xl border border-[#dfe5e1] bg-white px-4 py-3 text-sm text-[#172019] outline-none focus:border-green-700"
                 >
-                  <option value="">
-                    No blood required
-                  </option>
+                  <option value="">Not required</option>
                   <option value="A+">A+</option>
                   <option value="A-">A-</option>
                   <option value="B+">B+</option>
@@ -532,122 +538,31 @@ export default function Emergency() {
                 </select>
               </div>
 
-              {/* Error */}
               {error && (
-                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
-            </div>
-
-            {/* Actions */}
-            <div className="mt-7 flex justify-end gap-3">
-              <button
-                onClick={() => setShowNewEmergency(false)}
-                className="rounded-full border border-[#DDE5DF] px-5 py-2.5 text-sm font-medium text-[#647067] transition hover:bg-[#F6F8F6]"
-              >
-                Cancel
-              </button>
 
               <button
+                type="button"
                 onClick={handleCreateEmergency}
                 disabled={loading}
-                className="inline-flex items-center gap-2 rounded-full bg-green-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-800 px-5 py-3 text-sm font-medium text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading && <Loader2 size={16} className="animate-spin" />}
-                {loading ? "Matching Hospitals..." : "Create Request"}
+                {loading ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" />
+                    Finding Hospitals...
+                  </>
+                ) : (
+                  "Create Request"
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function EmergencyCard({
-  emergency,
-}: {
-  emergency: Emergency;
-}) {
-  const priorityStyles = {
-    Critical: "bg-red-50 text-red-700 border-red-100",
-    High: "bg-orange-50 text-orange-700 border-orange-100",
-    Moderate: "bg-yellow-50 text-yellow-700 border-yellow-100",
-  };
-
-  const statusStyles = {
-    Dispatched: "bg-green-50 text-green-700",
-    Waiting: "bg-orange-50 text-orange-700",
-    Resolved: "bg-gray-100 text-gray-600",
-  };
-
-  return (
-    <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5 transition hover:shadow-md">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-              emergency.priority === "Critical"
-                ? "bg-red-50 text-red-600"
-                : emergency.priority === "High"
-                  ? "bg-orange-50 text-orange-600"
-                  : "bg-yellow-50 text-yellow-600"
-            }`}
-          >
-            <Siren size={20} />
-          </div>
-
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-semibold text-[#172019]">
-                {emergency.id}
-              </h3>
-
-              <span
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                  priorityStyles[emergency.priority]
-                }`}
-              >
-                {emergency.priority}
-              </span>
-
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                  statusStyles[emergency.status]
-                }`}
-              >
-                {emergency.status}
-              </span>
-            </div>
-
-            <p className="mt-1 text-sm font-medium text-[#172019]">
-              {emergency.type}
-            </p>
-
-            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[#647067]">
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin size={13} />
-                {emergency.location}
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Ambulance size={13} />
-                {emergency.ambulance}
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <Clock3 size={13} />
-                {emergency.time}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <button className="rounded-full border border-[#DDE5DF] px-4 py-2 text-sm font-medium text-[#172019] transition hover:bg-[#F6F8F6]">
-          View Details
-        </button>
-      </div>
-    </div>
+    </main>
   );
 }
